@@ -12,6 +12,8 @@ namespace GameLovers.Services.Editor
 	public static class VersionEditorUtils
 	{
 		private const int ShortenedCommitLength = 8;
+		private const string AssetsPath = "Assets";
+		private const string FilePath = "Configs/Resources";
 
 		/// <summary>
 		/// Set the internal version before building the app.
@@ -110,10 +112,7 @@ namespace GameLovers.Services.Editor
 		/// </summary>
 		private static void SaveVersionData(string serializedData)
 		{
-			const string assets = "Assets";
-			const string resources = "Build/Resources";
-
-			var absDirPath = Path.Combine(Application.dataPath, resources);
+			var absDirPath = Path.Combine(Application.dataPath, FilePath);
 			if (!Directory.Exists(absDirPath))
 			{
 				Directory.CreateDirectory(absDirPath);
@@ -125,7 +124,7 @@ namespace GameLovers.Services.Editor
 			if (File.Exists(Path.ChangeExtension(absFilePath, assetExtension)))
 			{
 				AssetDatabase.DeleteAsset(
-					Path.Combine(assets, resources,
+					Path.Combine(AssetsPath, FilePath,
 						Path.ChangeExtension(VersionServices.VersionDataFilename, assetExtension)));
 			}
 
@@ -134,7 +133,7 @@ namespace GameLovers.Services.Editor
 			File.WriteAllText(Path.ChangeExtension(absFilePath, textExtension), serializedData);
 
 			AssetDatabase.ImportAsset(
-				Path.Combine(assets, resources,
+				Path.Combine(AssetsPath, FilePath,
 					Path.ChangeExtension(VersionServices.VersionDataFilename, textExtension)));
 		}
 	}
