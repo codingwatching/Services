@@ -5,7 +5,7 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "GameLovers.Services",
-        "GameLovers.DataExtensions",
+        "GameLovers.GameData",
         "Unity.PerformanceTesting"
     ],
     "includePlatforms": [],

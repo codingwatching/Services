@@ -4,7 +4,7 @@
 - **Package**: `com.gamelovers.services`
 - **Unity**: 6000.0+
 - **Dependencies** (see `package.json`)
-  - `com.gamelovers.dataextensions` (**0.6.2**) (contains `floatP`, used by `RngService`)
+  - `com.gamelovers.gamedata` (**1.0.0**) (contains `floatP`, used by `RngService`)
 
 This package provides a set of small, modular “foundation services” for Unity projects (service locator/DI-lite, messaging, ticking, coroutines, pooling, persistence, RNG, time, and build version helpers).
 
@@ -90,7 +90,7 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
 
 ## 6. External Package Sources (for API lookups)
 Prefer local UPM cache / local packages when needed:
-- DataExtensions: `Packages/com.gamelovers.dataextensions/` (e.g., `floatP`)
+- GameData: `Packages/com.gamelovers.gamedata/` (e.g., `floatP`)
 - Unity Newtonsoft JSON (Unity package): check `Library/PackageCache/` if you need source details
 
 ## 7. Dev Workflows (common changes)
