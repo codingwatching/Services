@@ -9,7 +9,7 @@ namespace GameLoversEditor.Services.Tests
 {
 	/// <summary>
 	/// Performance tests for ObjectPool.
-	/// Uses PrebuildSetup to ensure performance test metadata is initialized before tests run.
+	/// Uses PrebuildSetup and OneTimeSetUp to ensure performance test metadata is initialized before tests run.
 	/// </summary>
 	[TestFixture]
 	[Category("Performance")]
@@ -18,6 +18,12 @@ namespace GameLoversEditor.Services.Tests
 	{
 		public class MockEntity
 		{
+		}
+
+		[OneTimeSetUp]
+		public void OneTimeSetUp()
+		{
+			PerformanceTestSetup.InitializePerformanceTestMetadata();
 		}
 
 		[Test, Performance]

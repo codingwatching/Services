@@ -1,14 +1,11 @@
-using UnityEngine;
-using UnityEngine.TestTools;
-
-#if UNITY_EDITOR
-using UnityEditor;
-using Unity.PerformanceTesting.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-#endif
+using Unity.PerformanceTesting.Data;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 // ReSharper disable once CheckNamespace
 
@@ -25,18 +22,25 @@ namespace GameLoversEditor.Services.Tests
 
 		public void Setup()
 		{
-#if UNITY_EDITOR
+			InitializePerformanceTestMetadata();
+		}
+
+		/// <summary>
+		/// Initializes performance test metadata. Call this from [OneTimeSetUp] in test fixtures
+		/// to ensure metadata is available before tests run.
+		/// </summary>
+		public static void InitializePerformanceTestMetadata()
+		{
 			// Create and save run info to PlayerPrefs (required by Performance Testing Package in EditMode)
 			// Note: RunSettings is internal to the package, but only Run metadata is required to prevent
 			// the NullReferenceException in Metadata.SetRuntimeSettings()
 			var run = CreateRunInfo();
 			SaveToPrefs(run, PlayerPrefKeyRunJSON);
+			PlayerPrefs.Save(); // Ensure PlayerPrefs are persisted immediately
 
 			Debug.Log("[PerformanceTestSetup] Performance test metadata initialized.");
-#endif
 		}
 
-#if UNITY_EDITOR
 		private static Run CreateRunInfo()
 		{
 			var run = new Run
@@ -111,6 +115,5 @@ namespace GameLoversEditor.Services.Tests
 			var json = JsonUtility.ToJson(obj, true);
 			PlayerPrefs.SetString(key, json);
 		}
-#endif
 	}
 }
