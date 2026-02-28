@@ -82,33 +82,7 @@ Add the following line to your project's `Packages/manifest.json`:
 
 ---
 
-## Package Structure
-
-```
-Runtime/
-├── Installer.cs              # Core DI container
-├── MainInstaller.cs          # Static global service locator
-├── MessageBrokerService.cs   # Pub/sub messaging
-├── TickService.cs            # Update cycle management
-├── CoroutineService.cs       # MonoBehaviour-free coroutines
-├── PoolService.cs            # Pool registry
-├── ObjectPool.cs             # Pool implementations
-├── DataService.cs            # Persistence layer
-├── TimeService.cs            # Time abstraction
-├── RngService.cs             # Deterministic RNG
-├── VersionServices.cs        # Build/git metadata
-└── CommandService.cs         # Command pattern
-
-Editor/
-├── VersionEditorUtils.cs     # Version data generation
-└── GitEditorProcess.cs       # Git CLI integration
-
-Tests/
-├── EditMode/                 # Unit tests
-└── PlayMode/                 # Integration tests
-```
-
-### Key Files
+## Key Components
 
 | Component | Responsibility |
 |-----------|----------------|
