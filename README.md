@@ -2,7 +2,7 @@
 
 [![Unity Version](https://img.shields.io/badge/Unity-6000.0%2B-blue.svg)](https://unity3d.com/get-unity/download)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.0.1-green.svg)](CHANGELOG.md)
 
 > **Quick Links**: [Installation](#installation) | [Quick Start](#quick-start) | [Services](#services-documentation) | [Contributing](#contributing)
 
@@ -21,7 +21,7 @@ Building robust game architecture in Unity often leads to tightly coupled system
 | **Non-deterministic gameplay** | Deterministic RNG service with state save/restore |
 | **Version tracking complexity** | Build version service with git commit/branch metadata |
 
-**Built for production:** Zero external dependencies beyond Unity. Minimal per-frame allocations. Used in real games.
+**Built for production:** Minimal per-frame allocations. Used in real games.
 
 ### Key Features
 
@@ -33,15 +33,15 @@ Building robust game architecture in Unity often leads to tightly coupled system
 - **💾 Data Persistence** - Cross-platform save/load with JSON serialization
 - **🎲 Deterministic RNG** - Reproducible random number generation
 - **📋 Version Services** - Runtime access to build/git metadata
-- **🎮 Command Pattern** - Decoupled command execution layer
-- **⏰ Time Service** - Unified access to Unity/Unix/DateTime
+- **🎮 Command Pattern** - Typed, decoupled command execution layer
+- **⏰ Time Service** - Unified access to Unity/Unix/DateTime with time manipulation
 
 ---
 
 ## System Requirements
 
 - **[Unity](https://unity.com/download)** 6000.0+ (Unity 6)
-- **[GameLovers DataExtensions](https://github.com/CoderGamester/com.gamelovers.dataextensions)** (v0.6.2) - Automatically resolved
+- **[GameLovers GameData](https://github.com/CoderGamester/com.gamelovers.gamedata)** (v1.0.0) - Automatically resolved
 
 ### Compatibility Matrix
 
@@ -86,15 +86,18 @@ Add the following line to your project's `Packages/manifest.json`:
 
 | Component | Responsibility |
 |-----------|----------------|
-| **MainInstaller** | Static service locator for global scope bindings |
-| **Installer** | Instance-based DI container (for scoped installations) |
+| **MainInstaller** | Static service locator for global-scope single-interface bindings |
+| **Installer** | Instance-based DI container (supports multi-interface binding) |
 | **IMessageBrokerService** | Type-safe pub/sub messaging interface |
 | **ITickService** | Centralized Update/FixedUpdate/LateUpdate callbacks |
 | **ICoroutineService** | Run coroutines without MonoBehaviour |
 | **IPoolService** | Object pool registry and management |
 | **IDataService** | Cross-platform data persistence |
+| **IDataProvider** | Read-only data access (subset of `IDataService`) |
 | **ITimeService** | Unified time access (Unity/Unix/DateTime) |
+| **ITimeManipulator** | Extends `ITimeService` with time offset/sync manipulation |
 | **IRngService** | Deterministic random number generation |
+| **ICommandService\<TGameLogic\>** | Typed command execution layer |
 | **VersionServices** | Runtime build/git metadata |
 
 ---
@@ -121,12 +124,12 @@ public class GameBootstrap : MonoBehaviour
         MainInstaller.Bind<ITickService>(tickService);
         MainInstaller.Bind<IDataService>(dataService);
     }
-    
+
     void OnDestroy()
     {
         // Clean up on shutdown
-        MainInstaller.CleanDispose<ITickService>();
-        MainInstaller.Clean();
+        MainInstaller.CleanDispose<ITickService>();   // Dispose + remove
+        MainInstaller.Clean();                        // Remove remaining bindings
     }
 }
 ```
@@ -146,11 +149,8 @@ public class PlayerController
         // Subscribe to events
         messageBroker.Subscribe<PlayerDamagedMessage>(OnPlayerDamaged);
     }
-    
-    private void OnPlayerDamaged(PlayerDamagedMessage message)
-    {
-        // Handle event
-    }
+
+    private void OnPlayerDamaged(PlayerDamagedMessage message) { }
 }
 
 // Define messages as structs implementing IMessage
@@ -171,27 +171,36 @@ Lightweight service locator for managing dependencies globally.
 
 **Key Points:**
 - Only **interfaces** can be bound (throws if you try to bind a concrete type)
-- Binding is **instance-based** - you provide the instance, not the type
-- `MainInstaller` is a static class wrapping a single `Installer`
+- Binding is **instance-based** — you provide the instance, not the type
+- `MainInstaller` is a static class; use `Installer` directly for **multi-interface binding**
 
 ```csharp
-// Bind services (interfaces only)
+// Bind a single interface
 MainInstaller.Bind<IMessageBrokerService>(new MessageBrokerService());
 MainInstaller.Bind<IDataService>(new DataService());
 
-// Resolve services
+// Resolve
 var messageBroker = MainInstaller.Resolve<IMessageBrokerService>();
 
-// Safe resolve (doesn't throw)
+// Safe resolve (returns false instead of throwing)
 if (MainInstaller.TryResolve<IDataService>(out var dataService))
 {
-    dataService.SaveData();
+    dataService.SaveAllData();
 }
 
 // Clean up
-MainInstaller.Clean<IMessageBrokerService>(); // Remove single binding
-MainInstaller.CleanDispose<ITickService>();   // Dispose + remove
-MainInstaller.Clean();                         // Clear all bindings
+MainInstaller.Clean<IMessageBrokerService>();  // Remove single binding
+MainInstaller.CleanDispose<ITickService>();     // Dispose + remove
+MainInstaller.Clean();                          // Clear all bindings
+
+// Multi-interface binding requires using Installer directly
+var installer = new Installer();
+var timeService = new TimeService();
+installer.Bind<TimeService, ITimeService, ITimeManipulator>(timeService);
+
+// Bind calls are chainable
+installer.Bind<IMessageBrokerService>(new MessageBrokerService())
+         .Bind<ITickService>(new TickService());
 ```
 
 ---
@@ -201,11 +210,12 @@ MainInstaller.Clean();                         // Clear all bindings
 Decoupled pub/sub communication between game systems.
 
 **Key Points:**
-- Static method subscriptions are **not supported** (uses `action.Target`)
-- Use `PublishSafe` when subscribers might subscribe/unsubscribe during handling
+- Static method subscriptions are **not supported** (subscriber is keyed by `action.Target`)
+- `Publish` throws if `Subscribe`/`Unsubscribe` is called during publish — use `PublishSafe` in that case
+- `Unsubscribe<T>(null)` removes **all** subscribers for that message type
+- `UnsubscribeAll(null)` clears **everything** from the broker
 
 ```csharp
-// Define messages
 public struct EnemyDefeatedMessage : IMessage
 {
     public int EnemyId;
@@ -214,19 +224,26 @@ public struct EnemyDefeatedMessage : IMessage
 
 var broker = new MessageBrokerService();
 
-// Subscribe (instance methods only)
+// Subscribe (instance methods only — static methods are not supported)
 broker.Subscribe<EnemyDefeatedMessage>(OnEnemyDefeated);
 
 // Publish
 broker.Publish(new EnemyDefeatedMessage { EnemyId = 42, Position = Vector3.zero });
 
-// Use PublishSafe for chain subscriptions
+// Use PublishSafe when handlers may subscribe/unsubscribe during publish
 broker.PublishSafe(new EnemyDefeatedMessage { EnemyId = 42 });
 
-// Unsubscribe
-broker.Unsubscribe<EnemyDefeatedMessage>(this);    // This subscriber only
-broker.Unsubscribe<EnemyDefeatedMessage>();        // All subscribers
-broker.UnsubscribeAll(this);                        // All messages for this subscriber
+// Unsubscribe this object from one message type
+broker.Unsubscribe<EnemyDefeatedMessage>(this);
+
+// Unsubscribe ALL subscribers from one message type
+broker.Unsubscribe<EnemyDefeatedMessage>();
+
+// Unsubscribe this object from all message types
+broker.UnsubscribeAll(this);
+
+// Clear the entire broker
+broker.UnsubscribeAll();
 ```
 
 ---
@@ -237,31 +254,42 @@ Centralized control over Unity's update cycle.
 
 **Key Points:**
 - Creates a `DontDestroyOnLoad` GameObject to drive callbacks
-- Call `Dispose()` to tear down (tests, game reset)
-- Supports buffered ticking with overflow carry for reduced drift
+- Subscribe with an `Action<float>` (receives elapsed `deltaTime`)
+- `SubscribeOnUpdate` supports an optional `deltaTime` buffer for rate-limited ticking
+- Call `Dispose()` to tear down the host GameObject (tests, game reset)
 
 ```csharp
-public class GameController : ITickable, IDisposable
+public class GameController : IDisposable
 {
     private readonly ITickService _tickService;
-    
+
     public GameController()
     {
         _tickService = new TickService();
-        _tickService.Add(this);              // Update callback
-        _tickService.AddFixed(this);         // FixedUpdate callback
-        _tickService.Add(this, 0.1f);        // Buffered: every 0.1 seconds
+
+        // Subscribe to every frame Update
+        _tickService.SubscribeOnUpdate(OnUpdate);
+
+        // Subscribe to Update, throttled to run at most every 0.1 seconds
+        _tickService.SubscribeOnUpdate(OnUpdateBuffered, deltaTime: 0.1f);
+
+        // Subscribe to FixedUpdate
+        _tickService.SubscribeOnFixedUpdate(OnFixedUpdate);
+
+        // Subscribe to LateUpdate
+        _tickService.SubscribeOnLateUpdate(OnLateUpdate);
     }
-    
-    public void OnTick(float deltaTime, double time)
-    {
-        // Called every frame (or at specified interval)
-    }
-    
+
+    private void OnUpdate(float deltaTime) { /* called every frame */ }
+    private void OnUpdateBuffered(float deltaTime) { /* called every ~0.1s */ }
+    private void OnFixedUpdate(float deltaTime) { /* called on FixedUpdate */ }
+    private void OnLateUpdate(float deltaTime) { /* called on LateUpdate */ }
+
     public void Dispose()
     {
-        _tickService.Remove(this);
-        _tickService.Dispose();
+        // Remove all subscriptions from this object
+        _tickService.UnsubscribeAll(this);
+        _tickService.Dispose();  // Destroys the host GameObject
     }
 }
 ```
@@ -272,26 +300,42 @@ public class GameController : ITickable, IDisposable
 
 Run Unity coroutines from pure C# classes without MonoBehaviour.
 
+**Key Points:**
+- `StartCoroutine` returns a plain Unity `Coroutine` handle (no callbacks)
+- `StartAsyncCoroutine` returns `IAsyncCoroutine` with `OnComplete` callback and state flags
+- `StartDelayCall(action, delay)` — argument order: action first, delay second
+
 ```csharp
 var coroutineService = new CoroutineService();
 
-// Start coroutine with completion callback
-coroutineService.StartCoroutine(MyRoutine(), () => Debug.Log("Done!"));
+// Plain coroutine — returns Unity Coroutine handle
+Coroutine handle = coroutineService.StartCoroutine(MyRoutine());
+coroutineService.StopCoroutine(handle);
 
-// Delayed execution
-coroutineService.StartDelayCall(2f, () => Debug.Log("2 seconds later"));
+// Async coroutine — returns IAsyncCoroutine with callback and state
+IAsyncCoroutine asyncHandle = coroutineService.StartAsyncCoroutine(MyRoutine());
+asyncHandle.OnComplete(() => Debug.Log("Done!"));
 
-// Get coroutine reference
-var asyncCoroutine = coroutineService.StartCoroutine(LongTask());
-if (asyncCoroutine.IsRunning)
-{
-    coroutineService.StopCoroutine(asyncCoroutine);
-}
+if (asyncHandle.IsRunning) { /* still running */ }
+if (asyncHandle.IsCompleted) { /* finished naturally */ }
+
+// Stop the coroutine
+asyncHandle.StopCoroutine(triggerOnComplete: false);
+
+// Async coroutine with typed result data
+IAsyncCoroutine<int> typedHandle = coroutineService.StartAsyncCoroutine(MyRoutine(), data: 42);
+typedHandle.OnComplete(result => Debug.Log($"Finished with: {result}"));
+
+// Delayed call — action fires after delay seconds
+coroutineService.StartDelayCall(() => Debug.Log("2 seconds later"), delay: 2f);
+
+// Delayed call with typed data
+coroutineService.StartDelayCall<string>(msg => Debug.Log(msg), data: "Hello", delay: 1f);
 
 IEnumerator MyRoutine()
 {
     yield return new WaitForSeconds(1f);
-    Debug.Log("Coroutine step");
+    Debug.Log("Step");
 }
 ```
 
@@ -304,26 +348,39 @@ Efficient object pooling with lifecycle hooks.
 ```csharp
 var poolService = new PoolService();
 
-// Create pools
-var bulletPool = new GameObjectPool<Bullet>(bulletPrefab, initialSize: 50);
+// Create and register a pool
+var bulletPool = new GameObjectPool<Bullet>(initSize: 50, bulletPrefab);
 poolService.AddPool(bulletPool);
 
-// Spawn/Despawn
+// Spawn / Despawn
 var bullet = poolService.Spawn<Bullet>();
 poolService.Despawn(bullet);
 
-// Spawn with data (implement IPoolEntitySpawn<T>)
+// Spawn with data (entity must implement IPoolEntitySpawn<BulletData>)
 var bullet = poolService.Spawn<Bullet, BulletData>(new BulletData { Damage = 100 });
 
-// Direct pool access
-var pool = poolService.GetPool<Bullet>();
+// Get direct pool access
+IObjectPool<Bullet> pool = poolService.GetPool<Bullet>();
 pool.DespawnAll();
+
+// Despawn all via service
+poolService.DespawnAll<Bullet>();
+
+// Remove a pool without destroying its entities
+poolService.RemovePool<Bullet>();
+
+// Dispose a pool and optionally destroy its sample entity
+poolService.Dispose<Bullet>(disposeSampleEntity: true);
 ```
 
-**Lifecycle Hooks:**
-- `IPoolEntitySpawn` - Called on spawn
-- `IPoolEntitySpawn<TData>` - Called on spawn with data
-- `IPoolEntityDespawn` - Called on despawn
+**Lifecycle Hooks (implement on your entity):**
+
+| Interface | When Called |
+|-----------|-------------|
+| `IPoolEntitySpawn` | On every spawn (no data) |
+| `IPoolEntitySpawn<TData>` | On spawn with typed data |
+| `IPoolEntityDespawn` | On despawn |
+| `IPoolEntityObject<T>` | On first creation — receives pool reference for self-despawn |
 
 ---
 
@@ -332,9 +389,10 @@ pool.DespawnAll();
 Cross-platform persistent data storage with JSON serialization.
 
 **Key Points:**
-- Uses `PlayerPrefs` + `Newtonsoft.Json`
-- Keys are `typeof(T).Name` (watch for name collisions)
-- `LoadData<T>` requires parameterless constructor if no data exists
+- Data is keyed by **type** (`typeof(T)`) — no string keys
+- Only **reference types** (`class`) are supported
+- `LoadData<T>` requires `T` to have a **parameterless constructor** (creates a fresh instance if no saved data exists)
+- Keys stored in `PlayerPrefs` use `typeof(T).Name` — watch for name collisions across assemblies
 
 ```csharp
 [Serializable]
@@ -342,18 +400,32 @@ public class PlayerData
 {
     public string Name;
     public int Level;
+    public PlayerData() { }  // required for LoadData<T> when no saved data exists
 }
 
 var dataService = new DataService();
 
-// Save
-var player = new PlayerData { Name = "Hero", Level = 10 };
-dataService.AddOrReplaceData("player", player);
-await dataService.SaveData();
+// Load from disk (or create fresh if not saved yet)
+PlayerData player = dataService.LoadData<PlayerData>();
 
-// Load
-await dataService.LoadData();
-var loaded = dataService.GetData<PlayerData>("player");
+// Modify in memory
+player.Name = "Hero";
+player.Level = 10;
+
+// Save one type to disk
+dataService.SaveData<PlayerData>();
+
+// Save all types to disk
+dataService.SaveAllData();
+
+// Add or replace in memory without saving to disk
+dataService.AddOrReplaceData(new PlayerData { Name = "Alt", Level = 5 });
+
+// Read back from memory
+PlayerData loaded = dataService.GetData<PlayerData>();
+
+// Check if data exists in memory
+bool exists = dataService.HasData<PlayerData>();
 ```
 
 ---
@@ -364,27 +436,28 @@ Deterministic random number generation with state management.
 
 **Key Points:**
 - State can be saved/restored for replay or rollback
-- Uses `floatP` from DataExtensions for deterministic float math
-- Peek methods return next value without advancing state
+- Uses `floatP` from `com.gamelovers.gamedata` for deterministic float math
+- `Peek`/`PeekRange` return the next value without advancing state
 
 ```csharp
 // Create with seed
-var rngData = RngService.CreateRngData(seed: 12345);
+RngData rngData = RngService.CreateRngData(seed: 12345);
 var rng = new RngService(rngData);
 
 // Generate values
-int randomInt = rng.Next;                    // 0 to int.MaxValue
-floatP randomFloat = rng.Nextfloat;          // 0 to floatP.MaxValue
-int ranged = rng.Range(1, 100);              // 1-99 (exclusive max)
-floatP rangedFloat = rng.Range(0f, 1f);      // 0-1 (inclusive max)
+int randomInt      = rng.Next;                          // 0 to int.MaxValue
+floatP randomFloat = rng.Nextfloat;                     // 0 to floatP.MaxValue
+int ranged         = rng.Range(1, 100);                 // 1–99 (max exclusive by default)
+floatP rangedFloat = rng.Range((floatP)0f, (floatP)1f); // 0–1 (max inclusive by default)
 
-// Peek without advancing
-int peeked = rng.Peek;                       // Same value on repeated calls
+// Peek without advancing state
+int peeked      = rng.Peek;               // same value on repeated calls
+int peekedRange = rng.PeekRange(1, 100);
 
-// Save/restore state for determinism
+// Save and restore state for determinism / rollback
 int savedCount = rng.Counter;
 // ... generate some values ...
-rng.Restore(savedCount);                     // Restore to saved state
+rng.Restore(savedCount);  // rewind to saved state
 ```
 
 ---
@@ -394,24 +467,26 @@ rng.Restore(savedCount);                     // Restore to saved state
 Runtime access to build version and git metadata.
 
 **Key Points:**
-- Requires `version-data.txt` in Resources (generated by Editor tools)
-- Call `LoadVersionDataAsync()` early in app startup
+- Requires `version-data.txt` in Resources (generated by Editor tools on project load and before builds)
+- Call `LoadVersionDataAsync()` once at startup — **all properties except `VersionExternal` throw** if called before data is loaded
 
 ```csharp
 using GameLovers.Services;
 
-// Load version data (call once at startup)
+// Call once at startup (e.g. in a boot sequence)
 await VersionServices.LoadVersionDataAsync();
 
-// Access version info
-string externalVersion = VersionServices.VersionExternal;  // "1.0.0"
-string internalVersion = VersionServices.VersionInternal;  // "1.0.0-42.main.abc123"
-string branch = VersionServices.Branch;                     // "main"
-string commit = VersionServices.Commit;                     // "abc123"
-string buildNumber = VersionServices.BuildNumber;           // "42"
+// Safe at any time — reads Application.version directly
+string externalVersion = VersionServices.VersionExternal;  // "1.0.1"
 
-// Check if app is outdated
-bool outdated = VersionServices.IsOutdatedVersion("1.1.0");
+// These require LoadVersionDataAsync() to have completed first
+string internalVersion = VersionServices.VersionInternal;   // "1.0.1-42.main.abc123"
+string branch          = VersionServices.Branch;            // "main"
+string commit          = VersionServices.Commit;            // "abc123"
+string buildNumber     = VersionServices.BuildNumber;       // "42"
+
+// Check if app is outdated against a remote version string
+bool outdated = VersionServices.IsOutdatedVersion("1.2.0");
 ```
 
 ---
@@ -420,44 +495,77 @@ bool outdated = VersionServices.IsOutdatedVersion("1.1.0");
 
 Unified time access with manipulation support.
 
+**Key Points:**
+- Bind as `ITimeManipulator` if you need to manipulate time; bind as `ITimeService` for read-only consumers
+- All time getters account for any offset applied via `AddTime`
+
 ```csharp
 var timeService = new TimeService();
 
-// Get current times
-float unityTime = timeService.UnityTime;        // Time.time equivalent
-long unixTime = timeService.UnixTime;           // Unix timestamp
-DateTime dateTime = timeService.DateTime;       // DateTime.UtcNow
+// Query current times
+DateTime utcNow  = timeService.DateTimeUtcNow;    // current UTC datetime
+float unityTime  = timeService.UnityTimeNow;      // Time.realtimeSinceStartup + offset
+float scaledTime = timeService.UnityScaleTimeNow; // Time.time + offset
+long unixMs      = timeService.UnixTimeNow;       // Unix time in milliseconds
 
 // Conversions
-long unix = timeService.DateTimeToUnix(DateTime.UtcNow);
-DateTime dt = timeService.UnixToDateTime(unix);
+long unix    = timeService.UnixTimeFromDateTimeUtc(DateTime.UtcNow);
+DateTime dt  = timeService.DateTimeUtcFromUnixTime(unix);
+float unityT = timeService.UnityTimeFromUnixTime(unix);
+
+// Manipulation (ITimeManipulator only)
+timeService.AddTime(3600f);                     // fast-forward 1 hour
+timeService.SetInitialTime(DateTime.UtcNow);    // sync with server time
 ```
 
 ---
 
 ### Command Service
 
-Decoupled command execution layer with message broker integration.
+Typed, decoupled command execution with message broker integration.
+
+**Key Points:**
+- Commands implement `IGameCommand<TGameLogic>` and are executed synchronously
+- Use structs for simple fire-and-forget commands; use classes when you need reference semantics
+- `CommandService<TGameLogic>` exposes `protected GameLogic` and `protected MessageBroker` for subclassing
 
 ```csharp
-// Define commands
-public struct MovePlayerCommand : ICommand
+// Define your game logic container
+public class GameLogic
 {
-    public int PlayerId;
-    public Vector3 Direction;
+    public int PlayerLevel;
 }
 
-var commandService = new CommandService(messageBroker);
-
-// Execute commands
-await commandService.ExecuteCommand(new MovePlayerCommand 
+// Define a command
+public struct LevelUpCommand : IGameCommand<GameLogic>
 {
-    PlayerId = 1,
-    Direction = Vector3.forward
-});
+    public void Execute(GameLogic gameLogic, IMessageBrokerService messageBroker)
+    {
+        gameLogic.PlayerLevel++;
+        messageBroker.Publish(new PlayerLevelledUpMessage { Level = gameLogic.PlayerLevel });
+    }
+}
 
-// Fire and forget
-commandService.ExecuteCommand(new MovePlayerCommand { PlayerId = 2 });
+// Set up
+var gameLogic = new GameLogic();
+var messageBroker = new MessageBrokerService();
+ICommandService<GameLogic> commandService = new CommandService<GameLogic>(gameLogic, messageBroker);
+
+// Execute
+commandService.ExecuteCommand(new LevelUpCommand());
+
+// Extend CommandService to add cross-cutting behaviour
+public class MyCommandService : CommandService<GameLogic>
+{
+    public MyCommandService(GameLogic logic, IMessageBrokerService broker) : base(logic, broker) { }
+
+    public void CustomOperation()
+    {
+        // Access protected base properties
+        GameLogic.PlayerLevel++;
+        MessageBroker.Publish(new SomeMessage());
+    }
+}
 ```
 
 ---
