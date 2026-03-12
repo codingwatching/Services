@@ -214,6 +214,112 @@ namespace GameLoversEditor.Services.Tests
 			Assert.AreEqual(countAtUnsubscribe, callCount);
 		}
 
+		[UnityTest]
+		public IEnumerator UnsubscribeAllOnUpdate_RemovesAllUpdateSubscribers()
+		{
+			var sub1 = new TickSubscriber();
+			var sub2 = new TickSubscriber();
+
+			_tickService.SubscribeOnUpdate(sub1.OnTick);
+			_tickService.SubscribeOnUpdate(sub2.OnTick);
+
+			_tickService.UnsubscribeAllOnUpdate();
+
+			yield return null;
+
+			Assert.AreEqual(0, sub1.CallCount);
+			Assert.AreEqual(0, sub2.CallCount);
+		}
+
+		[UnityTest]
+		public IEnumerator UnsubscribeAllOnUpdate_BySubscriber_RemovesOnlyThatSubscriber()
+		{
+			var sub1 = new TickSubscriber();
+			var sub2 = new TickSubscriber();
+
+			_tickService.SubscribeOnUpdate(sub1.OnTick);
+			_tickService.SubscribeOnUpdate(sub2.OnTick);
+
+			_tickService.UnsubscribeAllOnUpdate(sub1);
+
+			yield return null;
+
+			Assert.AreEqual(0, sub1.CallCount);
+			Assert.Greater(sub2.CallCount, 0);
+		}
+
+		[UnityTest]
+		public IEnumerator UnsubscribeAllOnFixedUpdate_RemovesAllFixedUpdateSubscribers()
+		{
+			var sub1 = new TickSubscriber();
+			var sub2 = new TickSubscriber();
+
+			_tickService.SubscribeOnFixedUpdate(sub1.OnTick);
+			_tickService.SubscribeOnFixedUpdate(sub2.OnTick);
+
+			_tickService.UnsubscribeAllOnFixedUpdate();
+
+			yield return new WaitForFixedUpdate();
+			yield return new WaitForFixedUpdate();
+
+			Assert.AreEqual(0, sub1.CallCount);
+			Assert.AreEqual(0, sub2.CallCount);
+		}
+
+		[UnityTest]
+		public IEnumerator UnsubscribeAllOnFixedUpdate_BySubscriber_RemovesOnlyThatSubscriber()
+		{
+			var sub1 = new TickSubscriber();
+			var sub2 = new TickSubscriber();
+
+			_tickService.SubscribeOnFixedUpdate(sub1.OnTick);
+			_tickService.SubscribeOnFixedUpdate(sub2.OnTick);
+
+			_tickService.UnsubscribeAllOnFixedUpdate(sub1);
+
+			yield return new WaitForFixedUpdate();
+			yield return new WaitForFixedUpdate();
+
+			Assert.AreEqual(0, sub1.CallCount);
+			Assert.Greater(sub2.CallCount, 0);
+		}
+
+		[UnityTest]
+		public IEnumerator UnsubscribeAllOnLateUpdate_RemovesAllLateUpdateSubscribers()
+		{
+			var sub1 = new TickSubscriber();
+			var sub2 = new TickSubscriber();
+
+			_tickService.SubscribeOnLateUpdate(sub1.OnTick);
+			_tickService.SubscribeOnLateUpdate(sub2.OnTick);
+
+			_tickService.UnsubscribeAllOnLateUpdate();
+
+			yield return null;
+			yield return null;
+
+			Assert.AreEqual(0, sub1.CallCount);
+			Assert.AreEqual(0, sub2.CallCount);
+		}
+
+		[UnityTest]
+		public IEnumerator UnsubscribeAllOnLateUpdate_BySubscriber_RemovesOnlyThatSubscriber()
+		{
+			var sub1 = new TickSubscriber();
+			var sub2 = new TickSubscriber();
+
+			_tickService.SubscribeOnLateUpdate(sub1.OnTick);
+			_tickService.SubscribeOnLateUpdate(sub2.OnTick);
+
+			_tickService.UnsubscribeAllOnLateUpdate(sub1);
+
+			yield return null;
+			yield return null;
+
+			Assert.AreEqual(0, sub1.CallCount);
+			Assert.Greater(sub2.CallCount, 0);
+		}
+
 		[Test]
 		public void MultipleInstances_CreateMultipleGameObjects()
 		{

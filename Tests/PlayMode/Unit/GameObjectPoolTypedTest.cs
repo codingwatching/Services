@@ -104,5 +104,123 @@ namespace GameLoversEditor.Services.Tests
 			Assert.IsTrue(instance1 == null);
 			Assert.IsTrue(instance2 == null);
 		}
+
+		[UnityTest]
+		public IEnumerator DespawnAll_DeactivatesAllSpawnedInstances()
+		{
+			var instance1 = _pool.Spawn();
+			var instance2 = _pool.Spawn();
+
+			_pool.DespawnAll();
+
+			Assert.IsFalse(instance1.gameObject.activeSelf);
+			Assert.IsFalse(instance2.gameObject.activeSelf);
+			Assert.AreEqual(0, _pool.SpawnedReadOnly.Count);
+
+			yield return null;
+		}
+
+		[UnityTest]
+		public IEnumerator SampleEntity_ReturnsSampleReference()
+		{
+			Assert.AreSame(_sampleBehaviour, _pool.SampleEntity);
+
+			yield return null;
+		}
+
+		[UnityTest]
+		public IEnumerator SpawnedReadOnly_ReflectsSpawnedEntities()
+		{
+			Assert.AreEqual(0, _pool.SpawnedReadOnly.Count);
+
+			var instance = _pool.Spawn();
+
+			Assert.AreEqual(1, _pool.SpawnedReadOnly.Count);
+			Assert.AreSame(instance, _pool.SpawnedReadOnly[0]);
+
+			yield return null;
+		}
+
+		[UnityTest]
+		public IEnumerator IsSpawned_ReturnsTrueWhenMatch()
+		{
+			var instance = _pool.Spawn();
+
+			Assert.IsTrue(_pool.IsSpawned(e => e == instance));
+			Assert.IsFalse(_pool.IsSpawned(e => false));
+
+			yield return null;
+		}
+
+		[UnityTest]
+		public IEnumerator Despawn_WithCondition_FirstOnly_Successfully()
+		{
+			var instance1 = _pool.Spawn();
+			var instance2 = _pool.Spawn();
+
+			Assert.IsTrue(_pool.Despawn(onlyFirst: true, e => e == instance1));
+			Assert.AreEqual(1, _pool.SpawnedReadOnly.Count);
+			Assert.IsFalse(instance1.gameObject.activeSelf);
+			Assert.IsTrue(instance2.gameObject.activeSelf);
+
+			yield return null;
+		}
+
+		[UnityTest]
+		public IEnumerator Despawn_WithCondition_AllMatching_DespawnsAll()
+		{
+			_pool.Spawn();
+			_pool.Spawn();
+
+			Assert.IsTrue(_pool.Despawn(onlyFirst: false, e => true));
+			Assert.AreEqual(0, _pool.SpawnedReadOnly.Count);
+
+			yield return null;
+		}
+
+		[UnityTest]
+		public IEnumerator Reset_ClearsAndReinitializesPool()
+		{
+			_pool.Spawn();
+
+			var newSampleGo = new GameObject("NewSampleTyped");
+			var newSample = newSampleGo.AddComponent<MockBehaviour>();
+			newSampleGo.SetActive(false);
+
+			_pool.Reset(2, newSample);
+
+			Assert.AreEqual(0, _pool.SpawnedReadOnly.Count);
+			Assert.AreSame(newSample, _pool.SampleEntity);
+
+			Object.Destroy(newSampleGo);
+			yield return null;
+		}
+
+		[UnityTest]
+		public IEnumerator DespawnToSampleParent_ReparentsOnDespawn()
+		{
+			var parent = new GameObject("Parent");
+			_sampleGo.transform.SetParent(parent.transform);
+
+			var instance = _pool.Spawn();
+			instance.transform.SetParent(null);
+
+			_pool.Despawn(instance);
+
+			Assert.AreSame(parent.transform, instance.transform.parent);
+
+			Object.Destroy(parent);
+			yield return null;
+		}
+
+		[UnityTest]
+		public IEnumerator DisposeWithSampleDestroy_DestroysSampleGameObject()
+		{
+			_pool.Dispose(disposeSampleEntity: true);
+
+			yield return null;
+
+			Assert.IsTrue(_sampleGo == null);
+		}
 	}
 }

@@ -143,6 +143,34 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		public IEnumerator Dispose_DestroysHostGameObject()
+		{
+			var initialCount = Object.FindObjectsByType<CoroutineServiceMonoBehaviour>(FindObjectsSortMode.None).Length;
+			var service = new CoroutineService();
+
+			Assert.AreEqual(
+				initialCount + 1,
+				Object.FindObjectsByType<CoroutineServiceMonoBehaviour>(FindObjectsSortMode.None).Length);
+
+			service.Dispose();
+			yield return null;
+
+			Assert.AreEqual(
+				initialCount,
+				Object.FindObjectsByType<CoroutineServiceMonoBehaviour>(FindObjectsSortMode.None).Length);
+		}
+
+		[UnityTest]
+		public IEnumerator Dispose_CalledTwice_DoesNotThrow()
+		{
+			var service = new CoroutineService();
+			service.Dispose();
+			yield return null;
+
+			Assert.DoesNotThrow(() => service.Dispose());
+		}
+
+		[UnityTest]
 		public IEnumerator StartDelayCall_Successfully()
 		{
 			bool called = false;

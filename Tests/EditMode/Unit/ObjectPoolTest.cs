@@ -160,5 +160,28 @@ namespace GameLoversEditor.Services.Tests
 			Assert.IsFalse(_pool.Despawn(onlyFirst: true, e => false));
 			Assert.AreEqual(1, _pool.SpawnedReadOnly.Count);
 		}
+
+		[Test]
+		public void Despawn_WithCondition_AllMatching_DespawnsAll()
+		{
+			_pool.Spawn();
+			_pool.Spawn();
+
+			Assert.IsTrue(_pool.Despawn(onlyFirst: false, e => true));
+			Assert.AreEqual(0, _pool.SpawnedReadOnly.Count);
+		}
+
+		[Test]
+		public void Reset_ClearsAndReinitializes()
+		{
+			_pool.Spawn();
+			var newSample = Substitute.For<IMockEntity>();
+			uint newSize = 3;
+
+			_pool.Reset(newSize, newSample);
+
+			Assert.AreEqual(0, _pool.SpawnedReadOnly.Count);
+			Assert.AreSame(newSample, _pool.SampleEntity);
+		}
 	}
 }

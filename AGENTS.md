@@ -133,24 +133,10 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
 - **Tests**: `Tests/`
   - `EditMode/Unit/` — NUnit + NSubstitute; tests all non-MonoBehaviour services
   - `EditMode/Performance/` — `Unity.PerformanceTesting`; ObjectPool, MessageBroker perf
-  - `PlayMode/Unit/` — TickService, CoroutineService, GameObjectPool (require a runtime)
-  - `PlayMode/Integration/` — `ServiceLifecycleTest` full bootstrap/teardown
+  - `PlayMode/Unit/` — TickService, CoroutineService, GameObjectPool, GameObjectPool\<T\> (require a runtime)
+  - `PlayMode/Integration/` — `ServiceLifecycleTest` full bootstrap/teardown, `VersionServicesIntegrationTest` async resource loading
   - `PlayMode/Performance/` — TickService, GameObjectPool perf
   - `PlayMode/Smoke/` — `ServicesBootstrapSmokeTest`
-
-## 3.5. Test Coverage Gaps
-
-Known untested public API surface (as of v1.0.1). Add tests here when modifying these areas:
-
-- **CoroutineService**: `StartDelayCall`, `StartDelayCall<T>`, `Dispose()`
-- **TickService**: `SubscribeOnFixedUpdate`, `SubscribeOnLateUpdate`, `UnsubscribeOnFixedUpdate`, `UnsubscribeOnLateUpdate`, `UnsubscribeAllOnUpdate/FixedUpdate/LateUpdate` (and subscriber-scoped overloads), `UnsubscribeAll(object subscriber)` (targeted)
-- **ObjectPool\<T\>**: `Despawn(bool onlyFirst, Func<T,bool>)`, `IsSpawned`, `Reset`, `SpawnedReadOnly`, `SampleEntity`; `IPoolEntityObject<T>.Init`/`Despawn` (test was commented out)
-- **GameObjectPool\<T\>** (component-typed): entirely untested
-- **PoolService**: `Clear()`, `Dispose<T>(bool)`, `Spawn<T,TData>(data)` via service
-- **Installer**: `Bind<T,T1,T2>`, `Bind<T,T1,T2,T3>` (multi-interface overloads)
-- **RngService**: `Nextfloat`, `Peekfloat`, `Range(floatP,floatP)`, `PeekRange(floatP,floatP)`
-- **DataService**: `SaveAllData()`
-- **VersionServices**: `LoadVersionDataAsync()`, `VersionInternal`, `Branch`, `Commit`, `BuildNumber`
 
 ## 4. Important Behaviors / Gotchas
 

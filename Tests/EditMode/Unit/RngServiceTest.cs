@@ -147,5 +147,22 @@ namespace GameLoversEditor.Services.Tests
 				Assert.LessOrEqual((float)value, (float)max);
 			}
 		}
+
+		[Test]
+		public void PeekRangeFloat_DoesNotAdvanceState()
+		{
+			floatP min = (floatP)0f;
+			floatP max = (floatP)1f;
+
+			floatP peeked1 = _rngService.PeekRange(min, max);
+			floatP peeked2 = _rngService.PeekRange(min, max);
+
+			Assert.AreEqual(peeked1, peeked2);
+			Assert.AreEqual(0, _rngService.Counter);
+
+			floatP actual = _rngService.Range(min, max);
+			Assert.AreEqual(peeked1, actual);
+			Assert.AreEqual(1, _rngService.Counter);
+		}
 	}
 }
