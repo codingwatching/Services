@@ -97,5 +97,24 @@ namespace GameLoversEditor.Services.Tests
 		{
 			Assert.IsFalse(_dataService.HasData<PersistentData>());
 		}
+
+		[Test]
+		public void SaveAllData_Successfully()
+		{
+			var data1 = new PersistentData { Name = "Hero", Value = 10 };
+			var data2 = new PersistentData { Name = "Alt", Value = 20 };
+
+			_dataService.AddOrReplaceData(data1);
+			_dataService.SaveData<PersistentData>();
+			_dataService.AddOrReplaceData(data2);
+
+			_dataService.SaveAllData();
+
+			var dataService2 = new DataService();
+			var loaded = dataService2.LoadData<PersistentData>();
+
+			Assert.AreEqual(data2.Name, loaded.Name);
+			Assert.AreEqual(data2.Value, loaded.Value);
+		}
 	}
 }

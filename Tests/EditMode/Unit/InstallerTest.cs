@@ -9,7 +9,11 @@ namespace GameLoversEditor.Services.Tests
 	public class InstallerTest
 	{
 		private interface IInterface {}
+		private interface IInterface2 {}
+		private interface IInterface3 {}
 		private class Implementation : IInterface {}
+		private class MultiImpl : IInterface, IInterface2 {}
+		private class TripleImpl : IInterface, IInterface2, IInterface3 {}
 
 		private Installer _installer;
 		
@@ -40,6 +44,27 @@ namespace GameLoversEditor.Services.Tests
 		public void Resolve_NotBinded_ThrowsException()
 		{
 			Assert.Throws<ArgumentException>(() => _installer.Resolve<IInterface>());
+		}
+
+		[Test]
+		public void Bind_MultiInterface_ResolveBothInterfaces()
+		{
+			var instance = new MultiImpl();
+			_installer.Bind<MultiImpl, IInterface, IInterface2>(instance);
+
+			Assert.AreSame(instance, _installer.Resolve<IInterface>());
+			Assert.AreSame(instance, _installer.Resolve<IInterface2>());
+		}
+
+		[Test]
+		public void Bind_TripleInterface_ResolveAllInterfaces()
+		{
+			var instance = new TripleImpl();
+			_installer.Bind<TripleImpl, IInterface, IInterface2, IInterface3>(instance);
+
+			Assert.AreSame(instance, _installer.Resolve<IInterface>());
+			Assert.AreSame(instance, _installer.Resolve<IInterface2>());
+			Assert.AreSame(instance, _installer.Resolve<IInterface3>());
 		}
 	}
 }

@@ -77,18 +77,18 @@ namespace GameLoversEditor.Services.Tests
 			_mockEntity.Received().OnDespawn();
 		}
 
-		/* Uncomment when finding someone that can help fix this interface
 		[Test]
 		public void EntityDespawn_Successfully()
 		{
 			var pool = Substitute.For<IObjectPool<IMockEntity>>();
 			var entity = new MockEntity();
 
+			pool.Despawn(Arg.Any<IMockEntity>()).Returns(true);
 			entity.Init(pool);
 
 			Assert.IsTrue(entity.Despawn());
 			pool.Received().Despawn(entity);
-		}*/
+		}
 
 		[Test]
 		public void Despawn_NotSpawnedObject_ReturnsFalse()
@@ -115,6 +115,50 @@ namespace GameLoversEditor.Services.Tests
 			var clearedEntities = _pool.Clear();
 
 			Assert.AreEqual(_initialSize, clearedEntities.Count);
+		}
+
+		[Test]
+		public void SampleEntity_ReturnsSampleEntity()
+		{
+			Assert.AreSame(_mockEntity, _pool.SampleEntity);
+		}
+
+		[Test]
+		public void SpawnedReadOnly_ReturnsSpawnedEntities()
+		{
+			var entity = _pool.Spawn();
+
+			var spawned = _pool.SpawnedReadOnly;
+
+			Assert.AreEqual(1, spawned.Count);
+			Assert.AreSame(entity, spawned[0]);
+		}
+
+		[Test]
+		public void IsSpawned_ReturnsTrueWhenMatch()
+		{
+			var entity = _pool.Spawn();
+
+			Assert.IsTrue(_pool.IsSpawned(e => e == entity));
+			Assert.IsFalse(_pool.IsSpawned(e => false));
+		}
+
+		[Test]
+		public void Despawn_WithCondition_FirstOnly_Successfully()
+		{
+			var entity = _pool.Spawn();
+
+			Assert.IsTrue(_pool.Despawn(onlyFirst: true, e => e == entity));
+			Assert.AreEqual(0, _pool.SpawnedReadOnly.Count);
+		}
+
+		[Test]
+		public void Despawn_WithCondition_NoMatch_ReturnsFalse()
+		{
+			_pool.Spawn();
+
+			Assert.IsFalse(_pool.Despawn(onlyFirst: true, e => false));
+			Assert.AreEqual(1, _pool.SpawnedReadOnly.Count);
 		}
 	}
 }

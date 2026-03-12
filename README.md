@@ -52,10 +52,10 @@ Building robust game architecture in Unity often leads to tightly coupled system
 
 | Platform | Status | Notes |
 |----------|--------|-------|
-| Standalone (Windows/Mac/Linux) | ✅ Supported | Full feature support |
-| WebGL | ✅ Supported | Full feature support |
-| Mobile (iOS/Android) | ✅ Supported | Full feature support |
-| Console | ⚠️ Untested | Should work without modifications |
+| Standalone (Windows/Mac/Linux) | ✅ Tested | Primary development and test target |
+| WebGL | ⚠️ Expected to work | No platform-specific tests |
+| Mobile (iOS/Android) | ⚠️ Expected to work | No platform-specific tests |
+| Console | ⚠️ Untested | No platform-specific tests |
 
 ## Installation
 
@@ -287,7 +287,10 @@ public class GameController : IDisposable
 
     public void Dispose()
     {
-        // Remove all subscriptions from this object
+        // Remove a single callback by reference
+        _tickService.Unsubscribe(OnUpdate);
+
+        // Or remove all subscriptions from this object at once
         _tickService.UnsubscribeAll(this);
         _tickService.Dispose();  // Destroys the host GameObject
     }
@@ -319,7 +322,7 @@ asyncHandle.OnComplete(() => Debug.Log("Done!"));
 if (asyncHandle.IsRunning) { /* still running */ }
 if (asyncHandle.IsCompleted) { /* finished naturally */ }
 
-// Stop the coroutine
+// Stop the coroutine (note: triggerOnComplete flag is currently not respected — callbacks always fire)
 asyncHandle.StopCoroutine(triggerOnComplete: false);
 
 // Async coroutine with typed result data
@@ -331,6 +334,12 @@ coroutineService.StartDelayCall(() => Debug.Log("2 seconds later"), delay: 2f);
 
 // Delayed call with typed data
 coroutineService.StartDelayCall<string>(msg => Debug.Log(msg), data: "Hello", delay: 1f);
+
+// Stop all coroutines at once
+coroutineService.StopAllCoroutines();
+
+// Tear down the host GameObject when done (tests, game reset)
+coroutineService.Dispose();
 
 IEnumerator MyRoutine()
 {
@@ -373,6 +382,11 @@ poolService.RemovePool<Bullet>();
 poolService.Dispose<Bullet>(disposeSampleEntity: true);
 ```
 
+**Key Points:**
+- `GameObjectPool<T>` requires `T : Behaviour` — use it when you want a typed component reference on spawn
+- `GameObjectPool` (non-generic) works with raw `GameObject` references
+- `PoolService` keeps one pool per type; calling `AddPool<T>()` for an already-registered type throws
+
 **Lifecycle Hooks (implement on your entity):**
 
 | Interface | When Called |
@@ -391,6 +405,7 @@ Cross-platform persistent data storage with JSON serialization.
 **Key Points:**
 - Data is keyed by **type** (`typeof(T)`) — no string keys
 - Only **reference types** (`class`) are supported
+- `GetData<T>()` throws `KeyNotFoundException` if the type has not been loaded or added — use `HasData<T>()` to guard
 - `LoadData<T>` requires `T` to have a **parameterless constructor** (creates a fresh instance if no saved data exists)
 - Keys stored in `PlayerPrefs` use `typeof(T).Name` — watch for name collisions across assemblies
 

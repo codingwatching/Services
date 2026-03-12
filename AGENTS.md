@@ -12,14 +12,31 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
 
 ## 2. Runtime Architecture (high level)
 
+### Interface-to-Concrete Lookup
+
+| Interface | Implementation | File |
+|-----------|---------------|------|
+| `IInstaller` | `Installer` | `Runtime/Installer.cs` |
+| `IMessageBrokerService` | `MessageBrokerService` | `Runtime/MessageBrokerService.cs` |
+| `ITickService` | `TickService` | `Runtime/TickService.cs` |
+| `ICoroutineService` | `CoroutineService` | `Runtime/CoroutineService.cs` |
+| `IPoolService` | `PoolService` | `Runtime/PoolService.cs` |
+| `IObjectPool<T>` | `ObjectPool<T>`, `GameObjectPool`, `GameObjectPool<T>` | `Runtime/ObjectPool.cs` |
+| `IDataProvider` / `IDataService` | `DataService` | `Runtime/DataService.cs` |
+| `ITimeService` / `ITimeManipulator` | `TimeService` | `Runtime/TimeService.cs` |
+| `IRngService` | `RngService` | `Runtime/RngService.cs` |
+| `ICommandService<TGameLogic>` | `CommandService<TGameLogic>` | `Runtime/CommandService.cs` |
+
+
 ### Service Locator / Bindings
 `Runtime/Installer.cs`, `Runtime/MainInstaller.cs`
 - `Installer` stores a `Dictionary<Type, object>` of interface type → instance.
 - `MainInstaller` is a **static** wrapper over a single `Installer` instance (global scope).
 - Binding is **instance-based** (`Bind<T>(T instance)`), not "type-to-type" or lifetime-managed DI.
 - Only **interfaces** can be bound (binding a non-interface throws `ArgumentException`).
-- `Installer.Bind<T, T1, T2>(instance)` binds one instance to two interfaces simultaneously. `MainInstaller` only exposes single-interface `Bind<T>`.
+- `Installer.Bind<T, T1, T2>(instance)` binds one instance to two interfaces simultaneously. `Installer.Bind<T, T1, T2, T3>(instance)` also exists for three interfaces. `MainInstaller` only exposes single-interface `Bind<T>`.
 - `Bind` calls are chainable (returns `IInstaller`).
+- Re-binding the same interface throws (`Dictionary.Add` — no overwrite semantics).
 
 ### Messaging
 `Runtime/MessageBrokerService.cs`
@@ -39,8 +56,11 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
   - `SubscribeOnLateUpdate(action, deltaTime=0f, timeOverflowToNextTick=false, realTime=false)`
   - `SubscribeOnFixedUpdate(action)`
   - `Unsubscribe(action)` — removes from all lists
-  - `UnsubscribeOnUpdate/OnFixedUpdate/OnLateUpdate(action)` — type-specific removal
-  - `UnsubscribeAll()` / `UnsubscribeAll(object subscriber)` — clears all or by subscriber object
+  - `UnsubscribeOnUpdate/OnFixedUpdate/OnLateUpdate(action)` — type-specific single removal
+  - `UnsubscribeAllOnUpdate()` / `UnsubscribeAllOnUpdate(object)` — bulk clear Update list (all or by subscriber)
+  - `UnsubscribeAllOnFixedUpdate()` / `UnsubscribeAllOnFixedUpdate(object)` — bulk clear FixedUpdate list
+  - `UnsubscribeAllOnLateUpdate()` / `UnsubscribeAllOnLateUpdate(object)` — bulk clear LateUpdate list
+  - `UnsubscribeAll()` / `UnsubscribeAll(object subscriber)` — clears all lists (all or by subscriber)
 - `deltaTime > 0` enables buffered ticking (rate-limited). `timeOverflowToNextTick` carries overflow to reduce drift.
 - `realTime=true` uses `Time.realtimeSinceStartup`; `false` (default) uses `Time.time`.
 
@@ -118,6 +138,20 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
   - `PlayMode/Performance/` — TickService, GameObjectPool perf
   - `PlayMode/Smoke/` — `ServicesBootstrapSmokeTest`
 
+## 3.5. Test Coverage Gaps
+
+Known untested public API surface (as of v1.0.1). Add tests here when modifying these areas:
+
+- **CoroutineService**: `StartDelayCall`, `StartDelayCall<T>`, `Dispose()`
+- **TickService**: `SubscribeOnFixedUpdate`, `SubscribeOnLateUpdate`, `UnsubscribeOnFixedUpdate`, `UnsubscribeOnLateUpdate`, `UnsubscribeAllOnUpdate/FixedUpdate/LateUpdate` (and subscriber-scoped overloads), `UnsubscribeAll(object subscriber)` (targeted)
+- **ObjectPool\<T\>**: `Despawn(bool onlyFirst, Func<T,bool>)`, `IsSpawned`, `Reset`, `SpawnedReadOnly`, `SampleEntity`; `IPoolEntityObject<T>.Init`/`Despawn` (test was commented out)
+- **GameObjectPool\<T\>** (component-typed): entirely untested
+- **PoolService**: `Clear()`, `Dispose<T>(bool)`, `Spawn<T,TData>(data)` via service
+- **Installer**: `Bind<T,T1,T2>`, `Bind<T,T1,T2,T3>` (multi-interface overloads)
+- **RngService**: `Nextfloat`, `Peekfloat`, `Range(floatP,floatP)`, `PeekRange(floatP,floatP)`
+- **DataService**: `SaveAllData()`
+- **VersionServices**: `LoadVersionDataAsync()`, `VersionInternal`, `Branch`, `Commit`, `BuildNumber`
+
 ## 4. Important Behaviors / Gotchas
 
 ### MainInstaller API
@@ -154,6 +188,20 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
 - Runtime expects a Resources TextAsset named `version-data` (`VersionServices.VersionDataFilename`).
 - `VersionEditorUtils` writes `Assets/Configs/Resources/version-data.txt` on editor load and can be invoked before builds. It uses git CLI; failures should be handled gracefully.
 - `VersionExternal` is always safe (reads `Application.version` directly). All other `VersionServices` accessors throw if data has not been loaded — call `LoadVersionDataAsync()` early in boot.
+
+### Error Quick-Reference
+
+| Call | Exception | Condition |
+|------|-----------|-----------|
+| `Installer.Bind<T>(instance)` | `ArgumentException` | `T` is not an interface |
+| `Installer.Bind<T>(instance)` (duplicate) | `ArgumentException` | `T` already bound |
+| `MainInstaller.Resolve<T>()` | `KeyNotFoundException` | `T` not bound |
+| `broker.Subscribe(staticMethod)` | `ArgumentException` | `action.Target` is null |
+| `broker.Publish<T>()` | Exception | `Subscribe`/`Unsubscribe` called during iteration |
+| `dataService.GetData<T>()` | `KeyNotFoundException` | `T` not loaded or added |
+| `dataService.LoadData<T>()` | `MissingMethodException` | `T` has no parameterless constructor |
+| `poolService.AddPool<T>(pool)` (duplicate) | `ArgumentException` | Pool for `T` already registered |
+| `VersionServices.*` (except `VersionExternal`) | `NullReferenceException` | `LoadVersionDataAsync()` not called |
 
 ## 5. Coding Standards (Unity 6 / C# 9.0)
 - **C#**: C# 9.0 syntax; explicit namespaces; no global usings.

@@ -141,5 +141,31 @@ namespace GameLoversEditor.Services.Tests
 			Assert.AreNotEqual(testValue2, testCompleted); 
 			Assert.AreNotEqual(testValue3, _testValue); 
 		}
+
+		[UnityTest]
+		public IEnumerator StartDelayCall_Successfully()
+		{
+			bool called = false;
+			_coroutineService.StartDelayCall(() => called = true, delay: 0.05f);
+
+			Assert.IsFalse(called);
+
+			yield return new WaitForSeconds(0.2f);
+
+			Assert.IsTrue(called);
+		}
+
+		[UnityTest]
+		public IEnumerator StartDelayCall_WithData_Successfully()
+		{
+			int received = 0;
+			_coroutineService.StartDelayCall<int>(data => received = data, data: 99, delay: 0.05f);
+
+			Assert.AreEqual(0, received);
+
+			yield return new WaitForSeconds(0.2f);
+
+			Assert.AreEqual(99, received);
+		}
 	}
 }

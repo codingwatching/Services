@@ -98,25 +98,44 @@ namespace GameLoversEditor.Services.Tests
 			Assert.AreEqual(1, callCount);
 		}
 
+		private class TickSubscriber
+		{
+			public int CallCount;
+			public void OnTick(float dt) => CallCount++;
+		}
+
+		[UnityTest]
+		public IEnumerator UnsubscribeAll_RemovesAllSubscribers()
+		{
+			var sub1 = new TickSubscriber();
+			var sub2 = new TickSubscriber();
+
+			_tickService.SubscribeOnUpdate(sub1.OnTick);
+			_tickService.SubscribeOnUpdate(sub2.OnTick);
+
+			_tickService.UnsubscribeAll();
+
+			yield return null;
+
+			Assert.AreEqual(0, sub1.CallCount);
+			Assert.AreEqual(0, sub2.CallCount);
+		}
+
 		[UnityTest]
 		public IEnumerator UnsubscribeAll_BySubscriber_RemovesOnlyThatSubscriber()
 		{
-			int callCount1 = 0;
-			int callCount2 = 0;
-			object subscriber1 = new object();
-			
-			_tickService.SubscribeOnUpdate(dt => callCount1++); // subscriber is action.Target, which is this test class
-			_tickService.SubscribeOnUpdate(dt => callCount2++); // same here
-			
-			// To test targeted unsubscribe, we need different targets
-			// But since we can't easily mock action.Target, we'll just test UnsubscribeAll()
-			
-			_tickService.UnsubscribeAll();
-			
+			var sub1 = new TickSubscriber();
+			var sub2 = new TickSubscriber();
+
+			_tickService.SubscribeOnUpdate(sub1.OnTick);
+			_tickService.SubscribeOnUpdate(sub2.OnTick);
+
+			_tickService.UnsubscribeAll(sub1);
+
 			yield return null;
-			
-			Assert.AreEqual(0, callCount1);
-			Assert.AreEqual(0, callCount2);
+
+			Assert.AreEqual(0, sub1.CallCount, "sub1 should have been unsubscribed");
+			Assert.Greater(sub2.CallCount, 0, "sub2 should still receive ticks");
 		}
 
 		[UnityTest]
@@ -131,6 +150,68 @@ namespace GameLoversEditor.Services.Tests
 			yield return null; // Allow Destroy to complete
 			
 			Assert.AreEqual(initialCount, Object.FindObjectsByType<TickServiceMonoBehaviour>(FindObjectsSortMode.None).Length);
+		}
+
+		[UnityTest]
+		public IEnumerator SubscribeOnFixedUpdate_ReceivesDeltaTime()
+		{
+			float receivedDelta = -1f;
+			_tickService.SubscribeOnFixedUpdate(dt => receivedDelta = dt);
+
+			yield return new WaitForFixedUpdate();
+			yield return new WaitForFixedUpdate();
+
+			Assert.GreaterOrEqual(receivedDelta, 0f);
+		}
+
+		[UnityTest]
+		public IEnumerator SubscribeOnLateUpdate_ReceivesDeltaTime()
+		{
+			float receivedDelta = -1f;
+			_tickService.SubscribeOnLateUpdate(dt => receivedDelta = dt);
+
+			yield return null;
+			yield return null;
+
+			Assert.GreaterOrEqual(receivedDelta, 0f);
+		}
+
+		[UnityTest]
+		public IEnumerator UnsubscribeOnFixedUpdate_RemovesCallback()
+		{
+			int callCount = 0;
+			System.Action<float> action = dt => callCount++;
+			_tickService.SubscribeOnFixedUpdate(action);
+
+			yield return new WaitForFixedUpdate();
+			Assert.GreaterOrEqual(callCount, 1);
+
+			int countAtUnsubscribe = callCount;
+			_tickService.UnsubscribeOnFixedUpdate(action);
+
+			yield return new WaitForFixedUpdate();
+			yield return new WaitForFixedUpdate();
+
+			Assert.AreEqual(countAtUnsubscribe, callCount);
+		}
+
+		[UnityTest]
+		public IEnumerator UnsubscribeOnLateUpdate_RemovesCallback()
+		{
+			int callCount = 0;
+			System.Action<float> action = dt => callCount++;
+			_tickService.SubscribeOnLateUpdate(action);
+
+			yield return null;
+			Assert.GreaterOrEqual(callCount, 1);
+
+			int countAtUnsubscribe = callCount;
+			_tickService.UnsubscribeOnLateUpdate(action);
+
+			yield return null;
+			yield return null;
+
+			Assert.AreEqual(countAtUnsubscribe, callCount);
 		}
 
 		[Test]
