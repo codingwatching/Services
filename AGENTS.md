@@ -189,7 +189,53 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
 | `poolService.AddPool<T>(pool)` (duplicate) | `ArgumentException` | Pool for `T` already registered |
 | `VersionServices.*` (except `VersionExternal`) | `NullReferenceException` | `LoadVersionDataAsync()` not called |
 
-## 5. Coding Standards (Unity 6 / C# 9.0)
+## 5. Testing Conventions
+
+### Placement Rules (EditMode vs PlayMode)
+- **EditMode / Unit** (`Tests/EditMode/Unit/`): Pure-logic services with no `MonoBehaviour` or `GameObject` dependency. Use `[Test]`. NSubstitute is available (referenced only in the EditMode asmdef).
+- **EditMode / Performance** (`Tests/EditMode/Performance/`): Perf benchmarks that do not need a running player. Require `PerformanceTestSetup` (see below).
+- **PlayMode / Unit** (`Tests/PlayMode/Unit/`): Services that create `DontDestroyOnLoad` GameObjects (`TickService`, `CoroutineService`, `GameObjectPool`, `GameObjectPool<T>`). Use `[UnityTest]` returning `IEnumerator`.
+- **PlayMode / Integration** (`Tests/PlayMode/Integration/`): Cross-service or async workflows (e.g., `VersionServicesIntegrationTest` loads resources).
+- **PlayMode / Performance** (`Tests/PlayMode/Performance/`): Perf benchmarks that need a running player.
+- **PlayMode / Smoke** (`Tests/PlayMode/Smoke/`): Lightweight "construct without throwing" tests that confirm services instantiate and basic bind/resolve works.
+
+**Decision tree**: if the service under test creates a `GameObject` or relies on Unity callbacks → **PlayMode**; otherwise → **EditMode**.
+
+### Namespace and Suppression
+All test files use `namespace GameLoversEditor.Services.Tests` with the suppression comment:
+```csharp
+// ReSharper disable once CheckNamespace
+```
+
+### Naming
+- **Test class**: `{ServiceName}Test` (e.g., `ObjectPoolTest`, `TickServiceTest`). Performance tests use `{ServiceName}PerformanceTest`. Integration tests use `{ServiceName}IntegrationTest`.
+- **Test method**: `MethodOrBehavior_Condition_ExpectedResult` — e.g., `Spawn_Successfully`, `Range_MinEqualsMax_ReturnsMin`, `Despawn_NotSpawnedObject_ReturnsFalse`.
+- **SetUp method**: Named `Init()`.
+- **TearDown method**: Named `Dispose()` (when calling `service.Dispose()`) or `Cleanup()` (when doing `Object.Destroy` / `MainInstaller.Clean()`).
+
+### Mock / Helper Types
+- Define mock interfaces and classes as **nested types** inside the test class (e.g., `IMockEntity`, `MockEntity`, `MockBehaviour`, `IMockSubscriber`).
+- EditMode tests use **NSubstitute** (`Substitute.For<T>()`) for interface mocking. PlayMode tests use concrete `MonoBehaviour` stubs with manual counters (NSubstitute is not referenced in the PlayMode asmdef).
+
+### Fields and Setup
+- Fields are prefixed with `_` and use **concrete service types** (not interfaces): `private TickService _tickService;`, `private ObjectPool<IMockEntity> _pool;`.
+- Constants use `PascalCase`: `private const int Seed = 12345;`.
+- `[SetUp]` creates fresh service instances. Services that create GameObjects (`TickService`, `CoroutineService`) **must** call `Dispose()` in `[TearDown]`; `GameObjectPool` tests also `Object.Destroy` the sample GameObject.
+
+### Assertion Style
+- NUnit classic model only: `Assert.AreEqual`, `Assert.AreSame`, `Assert.IsTrue`, `Assert.Throws<T>`, `Assert.DoesNotThrow`, etc.
+- No constraint-model (`Assert.That(...)`) usage in the existing suite.
+
+### Performance Tests
+- Annotate with `[Test, Performance]` and `[Category("Performance")]`.
+- Apply `[PrebuildSetup(typeof(PerformanceTestSetup))]` at the class level and call `PerformanceTestSetup.InitializePerformanceTestMetadata()` in `[OneTimeSetUp]`.
+- Use `Measure.Method(() => { ... }).WarmupCount(n).MeasurementCount(n).Run()`.
+
+### Integration Tests
+- Use `[Order(n)]` when tests must run in sequence (e.g., `VersionServicesIntegrationTest` resets static state, then loads, then reads).
+- Reset shared static state in `[SetUp]` (reflection into private fields is acceptable for static classes like `VersionServices`).
+
+## 6. Coding Standards (Unity 6 / C# 9.0)
 - **C#**: C# 9.0 syntax; explicit namespaces; no global usings.
 - **Assemblies**
   - Runtime must not reference `UnityEditor`.
@@ -197,12 +243,12 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
 - **Performance**
   - Be mindful of allocations in hot paths (e.g., `PublishSafe` allocates; tick lists mutate; avoid per-frame allocations).
 
-## 6. External Package Sources (for API lookups)
+## 7. External Package Sources (for API lookups)
 Prefer local UPM cache / local packages when needed:
 - GameData (`floatP`, `MathfloatP`): `Packages/com.gamelovers.gamedata/`
 - Unity Newtonsoft JSON: check `Library/PackageCache/` if you need source details
 
-## 7. Dev Workflows (common changes)
+## 8. Dev Workflows (common changes)
 
 ### Add a new service
 - Add runtime interface + implementation under `Runtime/` (keep UnityEngine usage minimal if possible).
@@ -224,10 +270,11 @@ Prefer local UPM cache / local packages when needed:
 - Ensure `version-data.txt` exists/updates correctly in `Assets/Configs/Resources/`.
 - If changing `VersionServices.VersionData`, update both runtime parsing and `VersionEditorUtils` writing logic.
 
-## 8. Update Policy
+## 9. Update Policy
 Update this file when:
 - The binding/service-locator API changes (`Installer`, `MainInstaller`)
 - Core service behavior changes (publish safety rules, tick timing, coroutine completion/cancellation semantics, pooling lifecycle, command execution)
 - Versioning pipeline changes (resource filename, editor generator behavior, runtime parsing)
 - Dependencies change (`package.json`, new external types like `floatP`)
 - New services are added
+- Test conventions change (new asmdef references, assertion style, naming patterns, new test categories)
