@@ -52,12 +52,15 @@ All test files use `namespace GameLoversEditor.Services.Tests` with the suppress
 
 | Directory | Contents |
 |-----------|----------|
-| `EditMode/Unit/` | NUnit + NSubstitute; tests all non-MonoBehaviour services |
+| `EditMode/Unit/` | NUnit + NSubstitute; tests all non-MonoBehaviour services, incl. `AddressableConfigTest`, `AssetLoaderUtilsTest`, `AssetResolverServiceTest` |
 | `EditMode/Performance/` | `Unity.PerformanceTesting`; ObjectPool, MessageBroker perf |
 | `PlayMode/Unit/` | TickService, CoroutineService, GameObjectPool, GameObjectPool\<T\> (require a runtime) |
-| `PlayMode/Integration/` | `ServiceLifecycleTest` full bootstrap/teardown, `VersionServicesIntegrationTest` async resource loading |
+| `PlayMode/Integration/` | `ServiceLifecycleTest` full bootstrap/teardown, `VersionServicesIntegrationTest` async resource loading, `AddressablesAssetLoaderIntegrationTest` (marked `[Explicit]`) |
 | `PlayMode/Performance/` | TickService, GameObjectPool perf |
 | `PlayMode/Smoke/` | `ServicesBootstrapSmokeTest` |
+
+### Note on `[Explicit]` Integration Tests
+`AddressablesAssetLoaderIntegrationTest` is marked `[Explicit]` because it requires a live Addressables setup with a known asset address (`ValidKey` constant) configured in the host project's Addressable groups. Update the `ValidKey` constant in the test file before running it manually.
 
 ## 10. Update Policy
 Update this file when:

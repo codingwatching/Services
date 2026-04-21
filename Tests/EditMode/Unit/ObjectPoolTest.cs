@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using GameLovers.Services;
+using GameLovers.Services.Pooling;
 using NSubstitute;
 using NUnit.Framework;
 
@@ -80,14 +81,20 @@ namespace GameLoversEditor.Services.Tests
 		[Test]
 		public void EntityDespawn_Successfully()
 		{
-			var pool = Substitute.For<IObjectPool<IMockEntity>>();
-			var entity = new MockEntity();
+			// Using a real ObjectPool<IMockEntity> instead of Substitute.For<IObjectPool<IMockEntity>>()
+			// because NSubstitute + Castle DynamicProxy crashes during proxy generation on Unity's Mono
+			// runtime when the generic argument is a self-referential interface
+			// (IMockEntity : IPoolEntityObject<IMockEntity>) — ILGenerator.DeclareLocal receives a null
+			// localType. The real pool exercises the same MockEntity.Despawn -> pool.Despawn(this)
+			// contract, and SpawnedReadOnly.Count confirms the routing via observable state.
+			MockEntity sharedEntity = null;
+			var pool = new ObjectPool<IMockEntity>(1, () => sharedEntity ??= new MockEntity());
+			var entity = pool.Spawn();
 
-			pool.Despawn(Arg.Any<IMockEntity>()).Returns(true);
-			entity.Init(pool);
-
-			Assert.IsTrue(entity.Despawn());
-			pool.Received().Despawn(entity);
+			Assert.AreSame(sharedEntity, entity);
+			Assert.AreEqual(1, pool.SpawnedReadOnly.Count);
+			Assert.IsTrue(sharedEntity.Despawn());
+			Assert.AreEqual(0, pool.SpawnedReadOnly.Count);
 		}
 
 		[Test]

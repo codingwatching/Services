@@ -5,8 +5,10 @@
 - **Unity**: 6000.0+
 - **Dependencies** (see `package.json`)
   - `com.gamelovers.gamedata` (**1.0.0**) — provides `floatP`, used by `RngService`
+  - `com.unity.addressables` (**1.21.20**) — asset loading and scene loading
+  - `com.cysharp.unitask` (**2.5.10**) — async/await support for asset loading
 
-This package provides a set of small, modular "foundation services" for Unity projects (service locator/DI-lite, messaging, ticking, coroutines, pooling, persistence, RNG, time, command pattern, and build version helpers).
+This package provides a set of small, modular "foundation services" for Unity projects (service locator/DI-lite, messaging, ticking, coroutines, pooling, persistence, RNG, time, command pattern, and build version helpers) plus Addressables-based asset loading and importing tooling (absorbed from `com.gamelovers.assetsimporter` v0.5.2 in v2.0.0).
 
 For user-facing docs, treat `README.md` as the primary entry point. This file is for contributors/agents working on the package itself.
 
@@ -14,18 +16,22 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
 
 ### Interface-to-Concrete Lookup
 
-| Interface | Implementation | File |
-|-----------|---------------|------|
-| `IInstaller` | `Installer` | `Runtime/Installer.cs` |
-| `IMessageBrokerService` | `MessageBrokerService` | `Runtime/MessageBrokerService.cs` |
-| `ITickService` | `TickService` | `Runtime/TickService.cs` |
-| `ICoroutineService` | `CoroutineService` | `Runtime/CoroutineService.cs` |
-| `IPoolService` | `PoolService` | `Runtime/PoolService.cs` |
-| `IObjectPool<T>` | `ObjectPool<T>`, `GameObjectPool`, `GameObjectPool<T>` | `Runtime/ObjectPool.cs` |
-| `IDataProvider` / `IDataService` | `DataService` | `Runtime/DataService.cs` |
-| `ITimeService` / `ITimeManipulator` | `TimeService` | `Runtime/TimeService.cs` |
-| `IRngService` | `RngService` | `Runtime/RngService.cs` |
-| `ICommandService<TGameLogic>` | `CommandService<TGameLogic>` | `Runtime/CommandService.cs` |
+| Interface | Namespace | Implementation | File |
+|-----------|-----------|---------------|------|
+| `IInstaller` | `GameLovers.Services` | `Installer` | `Runtime/DependencyInjection/Installer.cs` |
+| `IMessageBrokerService` | `GameLovers.Services` | `MessageBrokerService` | `Runtime/MessageBrokerService.cs` |
+| `ITickService` | `GameLovers.Services` | `TickService` | `Runtime/TickService.cs` |
+| `ICoroutineService` | `GameLovers.Services` | `CoroutineService` | `Runtime/CoroutineService.cs` |
+| `IPoolService` | `GameLovers.Services.Pooling` | `PoolService` (ns `GameLovers.Services`) | `Runtime/Pooling/IPoolService.cs`, `Runtime/PoolService.cs` |
+| `IObjectPool<T>` | `GameLovers.Services.Pooling` | `ObjectPool<T>`, `GameObjectPool`, `GameObjectPool<T>` | `Runtime/Pooling/` |
+| `IDataProvider` / `IDataService` | `GameLovers.Services` | `DataService` | `Runtime/DataService.cs` |
+| `ITimeService` / `ITimeManipulator` | `GameLovers.Services` | `TimeService` | `Runtime/TimeService.cs` |
+| `IRngService` | `GameLovers.Services` | `RngService` | `Runtime/RngService.cs` |
+| `ICommandService<TGameLogic>` | `GameLovers.Services.Commands` | `CommandService<TGameLogic>` (ns `GameLovers.Services`) | `Runtime/Commands/ICommandService.cs`, `Runtime/CommandService.cs` |
+| `IGameCommand<TGameLogic>` / `IGameServerCommand<TGameLogic>` | `GameLovers.Services.Commands` | *(user-defined commands)* | `Runtime/Commands/IGameCommand.cs` |
+| `IAssetLoader` | `GameLovers.Services.AssetsImporter` | `AddressablesAssetLoader` | `Runtime/AssetsImporter/AddressablesAssetLoader.cs` |
+| `ISceneLoader` | `GameLovers.Services.AssetsImporter` | `AddressablesAssetLoader` | `Runtime/AssetsImporter/AddressablesAssetLoader.cs` |
+| `IAssetResolverService` / `IAssetAdderService` | `GameLovers.Services` | `AssetResolverService` | `Runtime/AssetResolverService.cs` |
 
 
 ### Service Locator / Bindings
@@ -124,20 +130,37 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
 ## 3. Key Directories / Files
 
 - **Runtime**: `Runtime/`
-  - Entry points: `MainInstaller.cs`, `Installer.cs`
-  - Services: `MessageBrokerService.cs`, `TickService.cs`, `CoroutineService.cs`, `PoolService.cs`, `DataService.cs`, `TimeService.cs`, `RngService.cs`, `VersionServices.cs`, `CommandService.cs`
-  - Pooling: `ObjectPool.cs`
+  - Entry points: `Runtime/DependencyInjection/Installer.cs`, `Runtime/DependencyInjection/MainInstaller.cs`
+  - Foundation services (ns `GameLovers.Services`): `MessageBrokerService.cs`, `TickService.cs`, `CoroutineService.cs`, `PoolService.cs`, `DataService.cs`, `TimeService.cs`, `RngService.cs`, `VersionServices.cs`, `CommandService.cs`, `AssetResolverService.cs`
+  - Command contracts (ns `GameLovers.Services.Commands`, in `Commands/`): `IGameCommand.cs`, `ICommandService.cs`
+  - Pool contracts + implementations (ns `GameLovers.Services.Pooling`, in `Pooling/`): `IPoolService.cs`, `IObjectPool.cs`, `IPoolEntity.cs`, `ObjectPool.cs`, `GameObjectPool.cs`
+  - Asset loading contracts + implementations (ns `GameLovers.Services.AssetsImporter`, in `AssetsImporter/`): `IAssetLoader.cs`, `ISceneLoader.cs`, `AddressablesAssetLoader.cs`, `AddressableConfig.cs`, `AssetConfigsScriptableObject.cs`, `AssetLoaderUtils.cs`, `AssetReferenceScene.cs`
 - **Editor**: `Editor/`
-  - Version data generation: `VersionEditorUtils.cs`, `GitEditorProcess.cs`
-  - Must remain editor-only (relies on `UnityEditor` + starting git processes)
+  - `Editor/Versioning/` (ns `GameLovers.Services.Versioning.Editor`): `VersionEditorUtils.cs`, `GitEditorProcess.cs` — version-data generation; must remain editor-only
+  - `Editor/AssetsImporter/` (ns `GameLovers.Services.AssetsImporter.Editor`): `AssetsImporter.cs`, `AssetsToolImporter.cs`, `AssetConfigsImporter.cs`, `AddressableIdsGenerator.cs`, `AddressablesIdGeneratorSettings.cs` — asset import pipeline; must remain editor-only
+  - Assembly: `GameLovers.Services.Editor.asmdef`
 - **Tests**: `Tests/`
   - Before reading, editing, or creating any file in `Tests/`, you **MUST** read [`Tests/AGENTS.md`](Tests/AGENTS.md) first.
-  - `EditMode/Unit/` — NUnit + NSubstitute; tests all non-MonoBehaviour services
+  - `EditMode/Unit/` — NUnit + NSubstitute; tests all non-MonoBehaviour services + `AddressableConfigTest`, `AssetLoaderUtilsTest`, `AssetResolverServiceTest`
   - `EditMode/Performance/` — `Unity.PerformanceTesting`; ObjectPool, MessageBroker perf
   - `PlayMode/Unit/` — TickService, CoroutineService, GameObjectPool, GameObjectPool\<T\> (require a runtime)
-  - `PlayMode/Integration/` — `ServiceLifecycleTest` full bootstrap/teardown, `VersionServicesIntegrationTest` async resource loading
+  - `PlayMode/Integration/` — `ServiceLifecycleTest`, `VersionServicesIntegrationTest`, `AddressablesAssetLoaderIntegrationTest` (marked `[Explicit]` — requires live Addressables setup)
   - `PlayMode/Performance/` — TickService, GameObjectPool perf
   - `PlayMode/Smoke/` — `ServicesBootstrapSmokeTest`
+
+### Folder Namespace Mapping
+
+With `"rootNamespace": "GameLovers.Services"` on the asmdef, Unity's *Create > C# Script* auto-derives namespaces from folder paths. That is already correct for all subfolders **except** `DependencyInjection/`.
+
+| Folder | Namespace | Notes |
+|---|---|---|
+| `Runtime/` (root) | `GameLovers.Services` | Concrete `*Service` classes + `AssetResolverService` |
+| `Runtime/DependencyInjection/` | `GameLovers.Services` | **Carve-out** — new files here need manual namespace fix (strip `DependencyInjection` segment) |
+| `Runtime/Commands/` | `GameLovers.Services.Commands` | Command contracts (interfaces only) |
+| `Runtime/Pooling/` | `GameLovers.Services.Pooling` | Pool contracts + pool implementations |
+| `Runtime/AssetsImporter/` | `GameLovers.Services.AssetsImporter` | Asset loading interfaces + Addressables loader |
+
+The concrete `PoolService` stays in `Runtime/` root under `GameLovers.Services` but references types from `GameLovers.Services.Pooling` — the file declares `using GameLovers.Services.Pooling;` at the top. `CommandService` follows the same pattern with `using GameLovers.Services.Commands;`.
 
 ## 4. Important Behaviors / Gotchas
 
@@ -167,6 +190,16 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
 - `GameObjectPool.Dispose(bool disposeSampleEntity)` destroys the `SampleEntity` GameObject when `true`. `GameObjectPool.Dispose()` destroys all pooled instances but not the sample reference.
 - `GameObjectPool` / `GameObjectPool<T>` use `GetComponent<>()` for lifecycle hooks on components. `ObjectPool<T>` casts the entity directly. This determines where `IPoolEntitySpawn` etc. must be implemented.
 
+### Asset Loading (AddressablesAssetLoader)
+- `UnloadAssetAsync<T>` calls `GC.Collect()` + `Resources.UnloadUnusedAssets()` — aggressive for a library call. This is preserved as-is from the original implementation; avoid adding similar patterns in new code.
+- `AddressablesAssetLoader` implements both `IAssetLoader` and `ISceneLoader`. `AssetResolverService` extends it and sits in the root `GameLovers.Services` namespace while its dependencies live in `GameLovers.Services.AssetsImporter`.
+- `AssetResolverService.RequestAsset` and `LoadSceneAsync<TId>` require assets to be pre-registered via `AddConfigs` / `AddAssets` / `AddAsset` (throws `MissingMemberException` otherwise).
+- `AssetConfigsScriptableObject<TId,TAsset>` inherits `AssetConfigsScriptableObjectBase<TId, AssetReference>` (not `<TId, TAsset>`). The generic `TAsset` is captured only as `AssetType`. This is intentional for the Addressables weak-link pattern.
+
+### AssetsConfigsImporter (Editor)
+- The `TId` type parameter on `AssetsConfigsImporter<TId,TAsset,TScriptableObject>` must satisfy `where TId : Enum`. Passing a non-enum identifier type will not compile.
+- Editor-heavy methods (`AssetsConfigsImporter.Import`, `AddressableIdsGenerator.GenerateAddressableIds`) are intentionally not covered by automated tests — they require `AssetDatabase` access and are validated manually via the Unity Editor Tools menu.
+
 ### CommandService Inheritance
 - `CommandService<TGameLogic>` has `protected TGameLogic GameLogic` and `protected IMessageBrokerService MessageBroker` accessible in subclasses.
 - `ExecuteCommand` is not declared `virtual`; to intercept execution, subclass and shadow with `new`, or implement `ICommandService<TGameLogic>` directly.
@@ -189,6 +222,8 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
 | `dataService.LoadData<T>()` | `MissingMethodException` | `T` has no parameterless constructor |
 | `poolService.AddPool<T>(pool)` (duplicate) | `ArgumentException` | Pool for `T` already registered |
 | `VersionServices.*` (except `VersionExternal`) | `NullReferenceException` | `LoadVersionDataAsync()` not called |
+| `assetResolverService.RequestAsset<TId,TAsset>()` | `MissingMemberException` | Asset/scene not registered via `AddAssets` |
+| `assetResolverService.LoadSceneAsync<TId>()` | `MissingMemberException` | Scene not registered via `AddAssets` |
 
 ## 5. Coding Standards (Unity 6 / C# 9.0)
 - **C#**: C# 9.0 syntax; explicit namespaces; no global usings.
@@ -202,6 +237,8 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
 Prefer local UPM cache / local packages when needed:
 - GameData (`floatP`, `MathfloatP`): `Packages/com.gamelovers.gamedata/`
 - Unity Newtonsoft JSON: check `Library/PackageCache/` if you need source details
+- Unity Addressables API: `Library/PackageCache/com.unity.addressables@<version>/`
+- UniTask API: `Library/PackageCache/com.cysharp.unitask@<version>/`
 
 ## 7. Package Dev Workflows (common changes)
 
@@ -223,6 +260,8 @@ Prefer local UPM cache / local packages when needed:
 Update this file when:
 - The binding/service-locator API changes (`Installer`, `MainInstaller`)
 - Core service behavior changes (publish safety rules, tick timing, coroutine completion/cancellation semantics, pooling lifecycle, command execution)
+- Asset loading / import pipeline behavior changes (`AssetResolverService`, `AddressablesAssetLoader`)
 - Versioning pipeline changes (resource filename, editor generator behavior, runtime parsing)
 - Dependencies change (`package.json`, new external types like `floatP`)
 - New services are added
+- Folder layout or namespace mapping changes (update §3 Folder Namespace Carve-Outs)

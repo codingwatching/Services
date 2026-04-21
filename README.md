@@ -2,7 +2,7 @@
 
 [![Unity Version](https://img.shields.io/badge/Unity-6000.0%2B-blue.svg)](https://unity3d.com/get-unity/download)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.0.1-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.0-green.svg)](CHANGELOG.md)
 
 > **Quick Links**: [Installation](#installation) | [Quick Start](#quick-start) | [Services](#services-documentation) | [Contributing](#contributing)
 
@@ -42,6 +42,8 @@ Building robust game architecture in Unity often leads to tightly coupled system
 
 - **[Unity](https://unity.com/download)** 6000.0+ (Unity 6)
 - **[GameLovers GameData](https://github.com/CoderGamester/com.gamelovers.gamedata)** (v1.0.0) - Automatically resolved
+- **[Unity Addressables](https://docs.unity3d.com/Packages/com.unity.addressables@latest)** (≥ 1.21.20) - Automatically resolved
+- **[UniTask](https://github.com/Cysharp/UniTask)** (≥ 2.5.10) - Automatically resolved
 
 ### Compatibility Matrix
 
@@ -99,6 +101,9 @@ Add the following line to your project's `Packages/manifest.json`:
 | **IRngService** | Deterministic random number generation |
 | **ICommandService\<TGameLogic\>** | Typed command execution layer |
 | **VersionServices** | Runtime build/git metadata |
+| **AssetResolverService** | Addressables-based typed asset loading by id + asset type |
+| **IAssetLoader** | Low-level addressable load/unload/instantiate interface |
+| **ISceneLoader** | Low-level addressable scene load/unload interface |
 
 ---
 
@@ -581,6 +586,69 @@ public class MyCommandService : CommandService<GameLogic>
         MessageBroker.Publish(new SomeMessage());
     }
 }
+```
+
+---
+
+### Asset Loading & Import
+
+Addressables-based asset loading, typed by id and asset type, with optional editor-time import pipeline.
+
+**Key Points:**
+- `AssetResolverService` is in namespace `GameLovers.Services`; the loader interfaces (`IAssetLoader`, `ISceneLoader`) and support types are in `GameLovers.Services.AssetsImporter`
+- Assets must be registered via `AddConfigs`, `AddAssets`, or `AddAsset` before calling `RequestAsset` or `LoadSceneAsync<TId>`
+- `AddressablesAssetLoader` implements both `IAssetLoader` and `ISceneLoader` and is the low-level entry point for raw addressable keys
+- Editor tools (Tools → Assets Importer / Tools → AddressableIds Generator) live in `Editor/AssetsImporter/`
+
+```csharp
+using GameLovers.Services;
+using GameLovers.Services.AssetsImporter;
+
+// Low-level: load any asset by key directly
+var loader = new AddressablesAssetLoader();
+var texture = await loader.LoadAssetAsync<Texture2D>("Textures/hero_avatar");
+
+// High-level: register configs and request by typed id
+public class AssetBootstrap
+{
+    public async void Init(
+        SpritesScriptableObject spriteConfigs,   // AssetConfigsScriptableObject<SpriteId, Sprite>
+        ScenesScriptableObject  sceneConfigs)    // AssetConfigsScriptableObject<SceneId, Scene>
+    {
+        var assetResolver = new AssetResolverService();
+        
+        // Register weak-link configs from ScriptableObjects
+        assetResolver.AddConfigs(spriteConfigs);
+        assetResolver.AddConfigs(sceneConfigs);
+        
+        // Load and instantiate a sprite by typed id
+        var sprite = await assetResolver.RequestAsset<SpriteId, Sprite>(
+            SpriteId.HeroAvatar, loadAsynchronously: true, instantiate: false);
+        
+        // Load a scene
+        await assetResolver.LoadSceneAsync<SceneId>(
+            SceneId.MainMenu, LoadSceneMode.Single, activateOnLoad: true);
+        
+        // Bulk-load all registered sprites at once
+        var allSprites = await assetResolver.LoadAllAssets<SpriteId, Sprite>();
+    }
+}
+
+// Define a ScriptableObject config container (one per asset type)
+[CreateAssetMenu(fileName = "SpritesConfig", menuName = "Configs/SpritesConfig")]
+public class SpritesScriptableObject : AssetConfigsScriptableObject<SpriteId, Sprite> { }
+```
+
+**Asset Import Pipeline (Editor):**
+
+```csharp
+// Implement a custom importer for a new asset type
+public class EnemySpritesImporter : AssetsConfigsImporter<EnemyId, Sprite, EnemySpriteConfig>
+{
+    // Ids are inferred from the enum values — override IdPattern to customise name matching
+}
+
+// Open Tools → Assets Importer to run all importers and populate ScriptableObject configs
 ```
 
 ---

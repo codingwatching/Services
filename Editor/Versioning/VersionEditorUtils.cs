@@ -4,7 +4,7 @@ using UnityEditor;
 using UnityEngine;
 using GameLovers.Services;
 
-namespace GameLovers.Services.Editor
+namespace GameLovers.Services.Versioning.Editor
 {
 	/// <summary>
 	/// Set the internal version in any VersionService instances in the project before building

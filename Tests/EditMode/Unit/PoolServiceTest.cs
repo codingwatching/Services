@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using GameLovers.Services;
+using GameLovers.Services.Pooling;
 using NSubstitute;
 using NUnit.Framework;
 
