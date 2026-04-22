@@ -97,7 +97,7 @@ namespace GameLoversEditor.Services.Tests
 
 			Assert.DoesNotThrow(() => _service.UnloadAssets<int, Sprite>(clearReferences: false, assetConfigs: so));
 
-			Object.DestroyImmediate(so);
+			UnityEngine.Object.DestroyImmediate(so);
 		}
 
 		[Test]
@@ -131,7 +131,7 @@ namespace GameLoversEditor.Services.Tests
 			// Registered via the default interface method — subsequent unload should not warn
 			Assert.DoesNotThrow(() => _service.UnloadAssets<int, Sprite>(clearReferences: true));
 
-			Object.DestroyImmediate(so);
+			UnityEngine.Object.DestroyImmediate(so);
 		}
 
 		// Concrete ScriptableObject subclass for AssetConfigsScriptableObject<int, Sprite>

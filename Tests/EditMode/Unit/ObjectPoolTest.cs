@@ -179,6 +179,37 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		public void Despawn_WithCondition_DistinctMatchingEntities_AllDespawn()
+		{
+			// Regression: Despawn_WithCondition_AllMatching_DespawnsAll spawns the same _mockEntity
+			// twice (the SetUp factory returns a single instance), so SpawnedEntities.Remove matches
+			// by reference equality on duplicates. This test uses DISTINCT entities to confirm the
+			// iterate-while-mutating fix in ObjectPoolBase<T>.Despawn(bool, Func) also holds when
+			// each matching element is a separate reference.
+			var pool = new ObjectPool<IMockEntity>(0, () => Substitute.For<IMockEntity>());
+			var first = pool.Spawn();
+			var second = pool.Spawn();
+
+			Assert.AreNotSame(first, second);
+			Assert.IsTrue(pool.Despawn(onlyFirst: false, e => true));
+			Assert.AreEqual(0, pool.SpawnedReadOnly.Count);
+		}
+
+		[Test]
+		public void Despawn_WithCondition_PartialMatch_NonMatchingSurvives()
+		{
+			// Confirms the iteration step-back after a successful despawn doesn't spuriously remove
+			// non-matching neighbours when only a subset of the spawned set matches the predicate.
+			var pool = new ObjectPool<IMockEntity>(0, () => Substitute.For<IMockEntity>());
+			var target = pool.Spawn();
+			var keeper = pool.Spawn();
+
+			Assert.IsTrue(pool.Despawn(onlyFirst: false, e => e == target));
+			Assert.AreEqual(1, pool.SpawnedReadOnly.Count);
+			Assert.AreSame(keeper, pool.SpawnedReadOnly[0]);
+		}
+
+		[Test]
 		public void Reset_ClearsAndReinitializes()
 		{
 			_pool.Spawn();

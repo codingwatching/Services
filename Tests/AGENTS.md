@@ -30,6 +30,14 @@ All test files use `namespace GameLoversEditor.Services.Tests` with the suppress
 - Define mock interfaces and classes as **nested types** inside the test class (e.g., `IMockEntity`, `MockEntity`, `MockBehaviour`, `IMockSubscriber`).
 - EditMode tests use **NSubstitute** (`Substitute.For<T>()`) for interface mocking. PlayMode tests use concrete `MonoBehaviour` stubs with manual counters (NSubstitute is not referenced in the PlayMode asmdef).
 
+### NSubstitute limitation on Unity's Mono runtime
+NSubstitute 4.4.0 (bundled Castle.Core DynamicProxy) cannot generate a proxy for a generic interface whose type argument is a **self-referentially-constrained interface**. Example: `Substitute.For<IObjectPool<IMockEntity>>()` where `IMockEntity : IPoolEntityObject<IMockEntity>` fails with `ArgumentNullException: localType` deep in `Castle.DynamicProxy.Generators.Emitters.SimpleAST.LocalReference.Generate` → `ILGenerator.DeclareLocal(null)`. Root cause is Castle's IL emitter resolving a generic parameter to `null` during type-building on Mono.
+
+When a test would otherwise substitute such an interface, do ONE of:
+- Use the real concrete implementation and verify via observable state (e.g., `new ObjectPool<IMockEntity>(...)` + assertions on `SpawnedReadOnly.Count`). This is preferred — see `EntityDespawn_Successfully` in `ObjectPoolTest`.
+- Hand-write a minimal fake class implementing the interface.
+Do not "work around" the proxy failure by restructuring the type hierarchy — `IMockEntity : IPoolEntityObject<IMockEntity>` is a legitimate modelling choice that the runtime code relies on.
+
 ## 5. Fields and Setup
 - Fields are prefixed with `_` and use **concrete service types** (not interfaces): `private TickService _tickService;`, `private ObjectPool<IMockEntity> _pool;`.
 - Constants use `PascalCase`: `private const int Seed = 12345;`.
