@@ -1,18 +1,43 @@
 # GameLovers.Services - AI Agent Guide
 
+> **Companion files**: `CLAUDE.md` wraps this file for Claude Code — edit `AGENTS.md`, not `CLAUDE.md`. `README.md` is the user-facing entry point; `docs/` has deep per-service API references.
+
 ## 1. Package Overview
 - **Package**: `com.gamelovers.services`
 - **Unity**: 6000.0+
-- **Dependencies** (see `package.json`)
+- **Dependencies** (see `package.json` — versions here must stay in sync)
   - `com.gamelovers.gamedata` (**1.0.0**) — provides `floatP`, used by `RngService`
   - `com.unity.addressables` (**1.21.20**) — asset loading and scene loading
   - `com.cysharp.unitask` (**2.5.10**) — async/await support for asset loading
 
 This package provides a set of small, modular "foundation services" for Unity projects (service locator/DI-lite, messaging, ticking, coroutines, pooling, persistence, RNG, time, command pattern, and build version helpers) plus Addressables-based asset loading and importing tooling (absorbed from `com.gamelovers.assetsimporter` v0.5.2 in v2.0.0).
 
-For user-facing docs, treat `README.md` as the primary entry point. This file is for contributors/agents working on the package itself.
+**Audience**: This file is for contributors/agents working on the package. For user-facing docs, see `README.md` (quick start, per-service examples) and `docs/` (full API reference).
 
 ## 2. Runtime Architecture (high level)
+
+```mermaid
+flowchart TD
+    MainInstaller["MainInstaller (static)"] -->|"wraps"| Installer
+    Installer -->|"Bind/Resolve"| Services
+
+    subgraph Services ["Bound Services"]
+        MessageBroker["MessageBrokerService"]
+        TickService["TickService"]
+        CoroutineService["CoroutineService"]
+        DataService["DataService"]
+        TimeService["TimeService"]
+        RngService["RngService"]
+        PoolService["PoolService"]
+        CommandService["CommandService&lt;TGameLogic&gt;"]
+        AssetResolver["AssetResolverService"]
+    end
+
+    TickService -->|"DontDestroyOnLoad host"| TickMono["TickServiceMonoBehaviour"]
+    CoroutineService -->|"DontDestroyOnLoad host"| CoroutineMono["CoroutineServiceMonoBehaviour"]
+    CommandService -->|"uses"| MessageBroker
+    AssetResolver -->|"extends"| AddressablesLoader["AddressablesAssetLoader\n(IAssetLoader + ISceneLoader)"]
+```
 
 ### Interface-to-Concrete Lookup
 
@@ -135,18 +160,21 @@ For user-facing docs, treat `README.md` as the primary entry point. This file is
   - Command contracts (ns `GameLovers.Services.Commands`, in `Commands/`): `IGameCommand.cs`, `ICommandService.cs`
   - Pool contracts + implementations (ns `GameLovers.Services.Pooling`, in `Pooling/`): `IPoolService.cs`, `IObjectPool.cs`, `IPoolEntity.cs`, `ObjectPool.cs`, `GameObjectPool.cs`
   - Asset loading contracts + implementations (ns `GameLovers.Services.AssetsImporter`, in `AssetsImporter/`): `IAssetLoader.cs`, `ISceneLoader.cs`, `AddressablesAssetLoader.cs`, `AddressableConfig.cs`, `AssetConfigsScriptableObject.cs`, `AssetLoaderUtils.cs`, `AssetReferenceScene.cs`
-- **Editor**: `Editor/`
-  - `Editor/Versioning/` (ns `GameLovers.Services.Versioning.Editor`): `VersionEditorUtils.cs`, `GitEditorProcess.cs` — version-data generation; must remain editor-only
-  - `Editor/AssetsImporter/` (ns `GameLovers.Services.AssetsImporter.Editor`): `AssetsImporter.cs`, `AssetsToolImporter.cs`, `AssetConfigsImporter.cs`, `AddressableIdsGenerator.cs`, `AddressablesIdGeneratorSettings.cs` — asset import pipeline; must remain editor-only
+- **Editor**: `Editor/` — all code here is editor-only; do not reference from runtime assemblies
+  - `Editor/Versioning/` (ns `GameLovers.Services.Versioning.Editor`): `VersionEditorUtils.cs`, `GitEditorProcess.cs` — version-data generation (runs on editor load + before builds)
+  - `Editor/AssetsImporter/` (ns `GameLovers.Services.AssetsImporter.Editor`): `AssetsImporter.cs`, `AssetsToolImporter.cs`, `AssetConfigsImporter.cs`, `AddressableIdsGenerator.cs`, `AddressablesIdGeneratorSettings.cs` — asset import pipeline
   - Assembly: `GameLovers.Services.Editor.asmdef`
 - **Tests**: `Tests/`
   - Before reading, editing, or creating any file in `Tests/`, you **MUST** read [`Tests/AGENTS.md`](Tests/AGENTS.md) first.
-  - `EditMode/Unit/` — NUnit + NSubstitute; tests all non-MonoBehaviour services + `AddressableConfigTest`, `AssetLoaderUtilsTest`, `AssetResolverServiceTest`
-  - `EditMode/Performance/` — `Unity.PerformanceTesting`; ObjectPool, MessageBroker perf
-  - `PlayMode/Unit/` — TickService, CoroutineService, GameObjectPool, GameObjectPool\<T\> (require a runtime)
-  - `PlayMode/Integration/` — `ServiceLifecycleTest`, `VersionServicesIntegrationTest`, `AddressablesAssetLoaderIntegrationTest` (marked `[Explicit]` — requires live Addressables setup)
-  - `PlayMode/Performance/` — TickService, GameObjectPool perf
-  - `PlayMode/Smoke/` — `ServicesBootstrapSmokeTest`
+
+  | Folder | Mode | What lives here |
+  |--------|------|----------------|
+  | `EditMode/Unit/` | EditMode | NUnit + NSubstitute; all non-MonoBehaviour services + AssetResolver/AssetLoaderUtils |
+  | `EditMode/Performance/` | EditMode | ObjectPool, MessageBroker perf (`Unity.PerformanceTesting`) |
+  | `PlayMode/Unit/` | PlayMode | TickService, CoroutineService, GameObjectPool, GameObjectPool\<T\> |
+  | `PlayMode/Integration/` | PlayMode | ServiceLifecycle, VersionServices, AddressablesAssetLoader (marked `[Explicit]`) |
+  | `PlayMode/Performance/` | PlayMode | TickService, GameObjectPool perf |
+  | `PlayMode/Smoke/` | PlayMode | `ServicesBootstrapSmokeTest` |
 
 ### Folder Namespace Mapping
 
