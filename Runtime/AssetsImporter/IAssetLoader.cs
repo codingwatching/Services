@@ -41,10 +41,14 @@ namespace GameLovers.Services.AssetsImporter
 			Action<GameObject> onCompleteCallback = null);
 
 		/// <summary>
-		/// Unloads the given <paramref name="asset"/> from the game memory.
-		/// If <typeparamref name="T"/> is of <seealso cref="GameObject"/> type, then will also destroy it
-		/// Invokes <paramref name="onCompleteCallback"/> when the asset is unloaded.
+		/// Releases the Addressables reference for <paramref name="asset"/>, decrementing its handle reference count.
+		/// This call is synchronous — memory is not freed immediately. Invoke <c>Resources.UnloadUnusedAssets</c>
+		/// at scene transitions, boot, or memory-pressure events to reclaim memory. Unity also runs this sweep
+		/// automatically on <c>LoadSceneMode.Single</c> scene loads.
+		/// For prefab instances returned by <see cref="InstantiateAsync(object, Transform, bool, Action{GameObject})"/>,
+		/// this does not destroy the <seealso cref="GameObject"/>; call <c>Object.Destroy</c> separately if required.
+		/// Invokes <paramref name="onCompleteCallback"/> immediately before returning.
 		/// </summary>
-		UniTask UnloadAssetAsync<T>(T asset, Action onCompleteCallback = null);
+		void UnloadAsset<T>(T asset, Action onCompleteCallback = null);
 	}
 }

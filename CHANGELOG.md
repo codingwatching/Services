@@ -4,29 +4,39 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - 2026-04-21
+## [2.0.0] - 2026-04-24
 
 **New**:
+- Added **Services Explorer** window (`Tools > GameLovers > Services Explorer`) with 13 live-refresh tabs: Overview, Installer, MessageBroker, Tick, Coroutine, Pool, Data, Time, RNG, AssetResolver, Versioning, Assets Importer, Addressable Ids — works in both Edit and Play mode
+- Menu stubs under `Tools > GameLovers`:
+  - `Versioning / Refresh Version Data` and `Versioning / Open in Explorer`
+  - `Assets Importer / Import Assets Data` and `Assets Importer / Open in Explorer`
+  - `Addressable Ids / Generate Addressable Ids` and `Addressable Ids / Open in Explorer`
+- Added `Assets > Create > GameLovers Services > …` scaffolders: Message, Command, Service, Pool Entity (template-based, $NAME$ / $NAMESPACE$ substitution)
 - Absorbed `com.gamelovers.assetsimporter` v0.5.2 into this package
 - Added `IAssetLoader`, `ISceneLoader`, `AddressablesAssetLoader` to `Runtime/AssetsImporter/` (ns `GameLovers.Services.AssetsImporter`)
 - Added `AddressableConfig`, `AssetConfigsScriptableObject<TId,TAsset>`, `AssetLoaderUtils`, `AssetReferenceScene` to `Runtime/AssetsImporter/` (ns `GameLovers.Services.AssetsImporter`)
 - Added `AssetResolverService` (implements `IAssetResolverService` / `IAssetAdderService`) to `Runtime/` root (ns `GameLovers.Services`)
 - Added Editor/AssetsImporter/: `AssetsImporter`, `AssetsToolImporter`, `AssetConfigsImporter`, `AddressableIdsGenerator`, `AddressablesIdGeneratorSettings` (ns `GameLovers.Services.AssetsImporter.Editor`)
-- Added new explicit editor asmdef: `GameLovers.Services.Editor.asmdef`
-- Added unit tests: `AddressableConfigTest`, `AssetLoaderUtilsTest`, `AssetResolverServiceTest` (EditMode/Unit)
-- Added integration test: `AddressablesAssetLoaderIntegrationTest` (PlayMode/Integration, marked `[Explicit]`)
-- Added `MIGRATION.md` with before/after examples for all breaking changes
 
 **Changed**:
+- Addressable Ids generator and Assets Importer settings moved from `Assets/*.asset` ScriptableObjects to `ProjectSettings/` ScriptableSingletons (mirrors `VersioningEditorSettings`).
+- Generation logic extracted from `AddressableIdsGenerator` into `AddressableIdsGeneratorUtils` (static `internal`); importer discovery/import logic extracted into `AssetsImporterEditorUtils`.
+- `Tools/Assets Importer/*` and `Tools/AddressableIds Generator/*` menu entries removed. Use `Tools/GameLovers/Assets Importer/...`, `Tools/GameLovers/Addressable Ids/...`, or the Services Explorer tabs instead.
+- `Toggle Auto Import On Refresh` menu entry removed. The toggle now lives exclusively in the Services Explorer **Assets Importer** tab.
+- `Assets/AssetsImporter.asset` and `Assets/AddressablesIdGeneratorSettings.asset` are no longer used (settings moved to `ProjectSettings/`); safe to delete from consumer projects.
+- Deleted editor source files: `AssetsImporter.cs`, `AssetsToolImporter.cs`, `AddressableIdsGenerator.cs`, `AddressablesIdGeneratorSettings.cs`.
 - Folder reorganization: `Runtime/` now has domain subfolders `DependencyInjection/`, `Commands/`, `Pooling/`, `AssetsImporter/`; `Editor/` now has `Versioning/` and `AssetsImporter/` subfolders
 - `Installer.cs` and `MainInstaller.cs` moved to `Runtime/DependencyInjection/` (namespace unchanged: `GameLovers.Services`)
 - `CommandService.cs` trimmed to concrete class only; command contract interfaces extracted to `Runtime/Commands/` under ns `GameLovers.Services.Commands`
 - `PoolService.cs` trimmed to concrete class only; pool interfaces + implementations moved to `Runtime/Pooling/` under ns `GameLovers.Services.Pooling`
 - `ObjectPool.cs` (578 lines, 10 types) split into 4 files under `Runtime/Pooling/`: `IPoolEntity.cs`, `IObjectPool.cs`, `ObjectPool.cs`, `GameObjectPool.cs`
 - `VersionEditorUtils.cs` and `GitEditorProcess.cs` moved to `Editor/Versioning/`; re-namespaced from `GameLovers.Services.Editor` → `GameLovers.Services.Versioning.Editor`
-- Runtime asmdef `GameLovers.Services.asmdef` updated: `rootNamespace = "GameLovers.Services"`, added GUID refs for Unity.Addressables, Unity.ResourceManager, UniTask, UniTask.Addressables
-- Tests asmdefs extended with Unity.Addressables + UniTask + ResourceManager references
 - Added new hard dependencies: `com.unity.addressables` (1.21.20) and `com.cysharp.unitask` (2.5.10)
+
+**Fixed**:
+- `AddressablesAssetLoader.UnloadAsset` no longer calls `GC.Collect()`, `GC.WaitForPendingFinalizers()`, or `Resources.UnloadUnusedAssets()`. The method now only decrements the Addressables reference count. The old implementation caused PlayMode Test Runner crashes on macOS and O(total-assets-in-memory) main-thread stalls per per-asset release. Callers that need memory reclamation should invoke `Resources.UnloadUnusedAssets()` themselves at appropriate moments (scene transitions, boot, memory-pressure events); Unity also runs an unused-assets sweep automatically on `LoadSceneMode.Single` scene loads.
+- Corrected `IAssetLoader.UnloadAsset` XML documentation: removed the incorrect "will also destroy GameObject instances" claim — `Addressables.Release(gameObject)` does not destroy the instance; callers must `Object.Destroy` it separately.
 
 **Breaking Changes** — see `MIGRATION.md` for details:
 - Pool types moved from `GameLovers.Services` to `GameLovers.Services.Pooling` (`IPoolService`, `IObjectPool`, `IObjectPool<T>`, `ObjectPool<T>`, `ObjectPoolBase<T>`, `GameObjectPool`, `GameObjectPool<T>`, `IPoolEntitySpawn`, `IPoolEntitySpawn<T>`, `IPoolEntityDespawn`, `IPoolEntityObject<T>`). `PoolService` concrete class remains in `GameLovers.Services`.
@@ -34,6 +44,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `GameLovers.AssetsImporter.*` renamed to `GameLovers.Services.AssetsImporter.*`
 - `GameLovers.AssetsImporter.AssetResolverService` is now `GameLovers.Services.AssetResolverService`
 - `GameLovers.Services.Editor.*` (versioning editor) renamed to `GameLovers.Services.Versioning.Editor.*`
+- `IAssetLoader.UnloadAssetAsync<T>(T, Action)` → `IAssetLoader.UnloadAsset<T>(T, Action)`: method renamed (dropped `Async` suffix) and return type changed from `UniTask` to `void` to reflect its synchronous nature. Replace `await loader.UnloadAssetAsync(x);` with `loader.UnloadAsset(x);`.
 - Code generated by `AddressableIdsGenerator` must be re-generated (updated emitted `using` statement)
 
 ## [1.0.1] - 2026-01-14

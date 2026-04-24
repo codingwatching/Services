@@ -120,7 +120,22 @@ Similarly, if you used `AssetsConfigsGeneratorImporter<TAsset>` to code-generate
 
 ---
 
-## 9. What Did NOT Change
+## 9. `IAssetLoader.UnloadAsset` Signature Change
+
+`IAssetLoader.UnloadAssetAsync<T>(T, Action)` was renamed to `IAssetLoader.UnloadAsset<T>(T, Action)` and its return type changed from `UniTask` to `void`. The underlying behaviour (`Addressables.Release(asset)` + invoke callback) is already synchronous, so the previous `UniTask`-returning signature was misleading; the rename makes the API honest.
+
+```diff
+- await loader.UnloadAssetAsync(texture);
++ loader.UnloadAsset(texture);
+```
+
+If you chained the release inside an `async` method, the fix is a single-line change: drop the `await` and the `Async` suffix. No other call-site adjustments are required.
+
+**Behavioural reminder**: `UnloadAsset` only decrements the Addressables reference count. It does not free memory and does not destroy `GameObject` instances returned by `InstantiateAsync`. To reclaim memory, call `UnityEngine.Resources.UnloadUnusedAssets()` at scene transitions, boot, or memory-pressure events. To destroy instantiated prefabs, call `UnityEngine.Object.Destroy` separately.
+
+---
+
+## 10. What Did NOT Change
 
 The following types remain in namespace `GameLovers.Services` — no action needed if you only use `using GameLovers.Services;`:
 

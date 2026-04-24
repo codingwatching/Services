@@ -89,6 +89,8 @@ namespace GameLovers.Services
 	{
 		private readonly Dictionary<Type, object> _bindings = new Dictionary<Type, object>();
 
+		internal IReadOnlyDictionary<Type, object> Bindings => _bindings;
+
 		/// <inheritdoc />
 		public IInstaller Bind<T>(T instance) where T : class
 		{

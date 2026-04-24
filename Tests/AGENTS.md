@@ -63,12 +63,12 @@ Do not "work around" the proxy failure by restructuring the type hierarchy — `
 | `EditMode/Unit/` | NUnit + NSubstitute; tests all non-MonoBehaviour services, incl. `AddressableConfigTest`, `AssetLoaderUtilsTest`, `AssetResolverServiceTest` |
 | `EditMode/Performance/` | `Unity.PerformanceTesting`; ObjectPool, MessageBroker perf |
 | `PlayMode/Unit/` | TickService, CoroutineService, GameObjectPool, GameObjectPool\<T\> (require a runtime) |
-| `PlayMode/Integration/` | `ServiceLifecycleTest` full bootstrap/teardown, `VersionServicesIntegrationTest` async resource loading, `AddressablesAssetLoaderIntegrationTest` (marked `[Explicit]`) |
+| `PlayMode/Integration/` | `ServiceLifecycleTest` full bootstrap/teardown, `VersionServicesIntegrationTest` async resource loading |
 | `PlayMode/Performance/` | TickService, GameObjectPool perf |
 | `PlayMode/Smoke/` | `ServicesBootstrapSmokeTest` |
 
-### Note on `[Explicit]` Integration Tests
-`AddressablesAssetLoaderIntegrationTest` is marked `[Explicit]` because it requires a live Addressables setup with a known asset address (`ValidKey` constant) configured in the host project's Addressable groups. Update the `ValidKey` constant in the test file before running it manually.
+### Note on `AddressablesAssetLoader` coverage
+`AddressablesAssetLoader` is intentionally not covered by automated integration tests. It is a thin wrapper over `UnityEngine.AddressableAssets.Addressables` static APIs with no branching logic — every method is `LoadAssetAsync → ToUniTask → throw-on-failure → return`. Live integration would require a pre-built Addressables catalog plus a manually registered asset in the host project, and would validate Unity code rather than package code. The consumer layer (`AssetResolverService`) has full unit coverage via `AssetResolverServiceTest`, and the wrapper's behaviour is documented in `docs/asset-loading.md`.
 
 ## 10. Update Policy
 Update this file when:

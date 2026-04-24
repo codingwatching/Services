@@ -254,6 +254,53 @@ await resolver.LoadSceneAsync<SceneId>(SceneId.MainMenu, LoadSceneMode.Single, t
 
 ---
 
+## Editor Tools
+
+The package ships a set of editor utilities that work in both **Edit** and **Play** mode.
+
+### Services Explorer
+
+Open via `Tools > GameLovers > Services Explorer`.
+
+A dockable UIToolkit window with one tab per service. During Play mode each tab live-refreshes at 250 ms intervals. In Edit mode a snapshot banner is shown and data is read on demand.
+
+| Tab | What it shows | Primary CTA / Actions |
+|---|---|---|
+| **Overview** | Per-service card grid with bound/ready status and direct jump-links | Open (jumps to tab), per-service primary CTA |
+| **Versioning** | `VersionExternal`, `VersionInternal`, `Branch`, `Commit`, `BuildNumber`; `version-data.txt` preview | **Reveal version-data.txt** |
+| **Installer** | All `MainInstaller` bindings (interface → concrete type) | **Clean All**; Clean, CleanDispose per binding |
+| **Message Broker** | All `IMessage` subscriptions with expandable subscriber lists | **Unsubscribe All**; Unsubscribe per type, Publish default(T) test |
+| **Tick** | Update / FixedUpdate / LateUpdate subscriber lists with throttle settings | **Unsubscribe All**; Clear per list |
+| **Coroutine** | Active `IAsyncCoroutine` handles (start time, running, completed) | **Stop All Coroutines**; Stop individual |
+| **Pool** | All registered pools: spawned count, sample entity | **Clear All Pools**; DespawnAll, Dispose, RemovePool, Ping sample |
+| **Data** | All loaded data types with indented JSON preview | **Save All Data**; Save, Load, Delete PlayerPrefs key |
+| **Time** | Live `DateTimeUtcNow`, `UnityTimeNow`, `UnityScaleTimeNow`, `UnixTimeNow` | **Reset Time**; `AddTime` slider, `SetInitialTime` picker |
+| **RNG** | Seed, Counter, peek-next N values | Restore(count) |
+| **Asset Resolver** | `AssetMap` tree: asset type → id type → (id → ref, loaded status) | **Unload All** (behind destructive toggle); Unload per asset |
+| **Assets Importer** | Discovered `IAssetConfigsImporter` list with per-importer path and status | **Import All**; Set Path, Import, Select per importer |
+| **Addressable Ids** | Generator settings (`ScriptFilename`, `Namespace`, `AddressableLabel`) with output status | **Generate Addressable Ids**; Open Addressables Groups |
+
+### Custom Inspectors
+
+- **`AssetConfigsScriptableObject`** — diagnostics panel (duplicate keys, empty GUIDs) + default fields + "Regenerate Addressable Ids" button.
+- **`AddressablesIdGeneratorSettings`** — settings are now configured in the Services Explorer **Addressable Ids** tab (`Tools > GameLovers > Addressable Ids > Open in Explorer`).
+- **`AssetReferenceScene`** (property drawer) — resolved scene path label + "Open in Addressables Groups" button.
+
+### Scaffolders
+
+`Assets > Create > GameLovers Services > …`
+
+| Entry | Generates |
+|---|---|
+| **Message** | `struct : IMessage` |
+| **Command** | `struct : IGameCommand<TGameLogic>` |
+| **Service** | `IMyService` + `MyService : IMyService, IDisposable` |
+| **Pool Entity** | class implementing `IPoolEntitySpawn` + `IPoolEntityDespawn` |
+
+File names and namespaces are set interactively in the Project window, identical to Unity's built-in "Create > C# Script" flow.
+
+---
+
 ## Contributing
 
 Contributions are welcome! See [GitHub Issues](https://github.com/CoderGamester/com.gamelovers.services/issues) to report bugs or request features. For development setup, architecture details, namespace conventions, and coding standards, see [AGENTS.md](AGENTS.md).

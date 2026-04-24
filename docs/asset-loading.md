@@ -13,7 +13,7 @@ Addressables-based asset loading, typed by id and asset type, with optional edit
 - Assets must be registered via `AddConfigs`, `AddAssets`, or `AddAsset` before calling `RequestAsset` or `LoadSceneAsync<TId>` — throws `MissingMemberException` otherwise
 - `AddressablesAssetLoader` implements both `IAssetLoader` and `ISceneLoader`
 - `AssetConfigsScriptableObject<TId,TAsset>` inherits `AssetConfigsScriptableObjectBase<TId, AssetReference>` (not `<TId, TAsset>`) — the weak-link Addressables pattern; `TAsset` is captured only as `AssetType`
-- `UnloadAssetAsync<T>` calls `GC.Collect()` + `Resources.UnloadUnusedAssets()` — do not add similar patterns in new code
+- `UnloadAsset<T>` is synchronous and returns `void` — it only decrements the Addressables reference count for the given asset. Memory reclamation is the caller's responsibility: invoke `Resources.UnloadUnusedAssets()` at appropriate moments (scene transitions, boot, memory-pressure events). Unity also runs an unused-assets sweep automatically on `LoadSceneMode.Single` scene loads. For prefab instances returned by `InstantiateAsync`, `UnloadAsset` does not destroy the `GameObject`; call `Object.Destroy` separately if required.
 
 ```csharp
 using GameLovers.Services;
@@ -22,7 +22,7 @@ using GameLovers.Services.AssetsImporter;
 // Low-level: load any asset by Addressables key directly
 var loader  = new AddressablesAssetLoader();
 var texture = await loader.LoadAssetAsync<Texture2D>("Textures/hero_avatar");
-await loader.UnloadAssetAsync(texture);
+loader.UnloadAsset(texture);
 
 var instance = await loader.InstantiateAsync("Prefabs/Player");
 await loader.ReleaseInstanceAsync(instance);

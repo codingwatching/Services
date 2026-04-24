@@ -11,6 +11,8 @@ namespace GameLovers.Services
 	{
 		private readonly IDictionary<Type, IObjectPool> _pools = new Dictionary<Type, IObjectPool>();
 
+		internal IReadOnlyDictionary<Type, IObjectPool> Pools => (IReadOnlyDictionary<Type, IObjectPool>)_pools;
+
 		/// <inheritdoc />
 		public IObjectPool<T> GetPool<T>() where T : class
 		{

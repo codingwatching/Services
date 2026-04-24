@@ -60,80 +60,61 @@ flowchart TD
 
 
 ### Service Locator / Bindings
-`Runtime/Installer.cs`, `Runtime/MainInstaller.cs`
-- `Installer` stores a `Dictionary<Type, object>` of interface type → instance.
-- `MainInstaller` is a **static** wrapper over a single `Installer` instance (global scope).
-- Binding is **instance-based** (`Bind<T>(T instance)`), not "type-to-type" or lifetime-managed DI.
-- Only **interfaces** can be bound (binding a non-interface throws `ArgumentException`).
-- `Installer.Bind<T, T1, T2>(instance)` binds one instance to two interfaces simultaneously. `Installer.Bind<T, T1, T2, T3>(instance)` also exists for three interfaces. `MainInstaller` only exposes single-interface `Bind<T>`.
-- `Bind` calls are chainable (returns `IInstaller`).
-- Re-binding the same interface throws (`Dictionary.Add` — no overwrite semantics).
+`Runtime/DependencyInjection/Installer.cs`, `Runtime/DependencyInjection/MainInstaller.cs`
+- `Installer` stores interface type -> instance bindings; `MainInstaller` is a static global wrapper over one private `Installer`.
+- Binding is **instance-based** (`Bind<T>(T instance)`), not type-to-type or lifetime-managed DI.
+- Only **interfaces** can be bound; non-interface binds throw `ArgumentException`.
+- `Installer` supports multi-interface binds (`Bind<T,T1,T2>` and `Bind<T,T1,T2,T3>`). `MainInstaller` exposes only single-interface `Bind<T>`.
+- Re-binding the same interface throws (`Dictionary.Add`); there is no overwrite behavior.
 
 ### Messaging
 `Runtime/MessageBrokerService.cs`
 - Message contract: `IMessage`
-- Pub/sub via `IMessageBrokerService`:
-  - `Publish<T>(T message)` — iterates subscribers directly; throws if `Subscribe`/`Unsubscribe` is called during publish.
-  - `PublishSafe<T>(T message)` — copies delegate list first; safe for chain subscribe/unsubscribe during publish (allocates).
-  - `Subscribe<T>(Action<T> action)` — keyed by `action.Target`; **static methods throw**.
-  - `Unsubscribe<T>(object subscriber = null)` — `null` removes **all** subscribers for that type.
-  - `UnsubscribeAll(object subscriber = null)` — `null` clears **everything**.
+- `Publish<T>` iterates subscribers directly; use `PublishSafe<T>` when handlers may subscribe/unsubscribe during publish (safe copy, extra allocation).
+- `Subscribe<T>` stores subscribers by `action.Target`; static method subscriptions throw.
+- `Unsubscribe<T>(null)` clears all subscribers for that message type; `UnsubscribeAll(null)` clears everything.
 
 ### Tick / Update Fan-Out
 `Runtime/TickService.cs`
 - Creates a `DontDestroyOnLoad` GameObject with `TickServiceMonoBehaviour` to drive Unity callbacks.
-- Subscriber API (all take `Action<float> action`):
-  - `SubscribeOnUpdate(action, deltaTime=0f, timeOverflowToNextTick=false, realTime=false)`
-  - `SubscribeOnLateUpdate(action, deltaTime=0f, timeOverflowToNextTick=false, realTime=false)`
-  - `SubscribeOnFixedUpdate(action)`
-  - `Unsubscribe(action)` — removes from all lists
-  - `UnsubscribeOnUpdate/OnFixedUpdate/OnLateUpdate(action)` — type-specific single removal
-  - `UnsubscribeAllOnUpdate()` / `UnsubscribeAllOnUpdate(object)` — bulk clear Update list (all or by subscriber)
-  - `UnsubscribeAllOnFixedUpdate()` / `UnsubscribeAllOnFixedUpdate(object)` — bulk clear FixedUpdate list
-  - `UnsubscribeAllOnLateUpdate()` / `UnsubscribeAllOnLateUpdate(object)` — bulk clear LateUpdate list
-  - `UnsubscribeAll()` / `UnsubscribeAll(object subscriber)` — clears all lists (all or by subscriber)
+- Subscriber APIs all take `Action<float>`; `Unsubscribe(action)` removes from all Update/Fixed/Late lists.
+- Type-specific unsubscribe and bulk clear APIs exist for Update, FixedUpdate, and LateUpdate.
 - `deltaTime > 0` enables buffered ticking (rate-limited). `timeOverflowToNextTick` carries overflow to reduce drift.
 - `realTime=true` uses `Time.realtimeSinceStartup`; `false` (default) uses `Time.time`.
 
 ### Coroutine Host
 `Runtime/CoroutineService.cs`
 - Creates a `DontDestroyOnLoad` GameObject with `CoroutineServiceMonoBehaviour`.
-- API:
-  - `StartCoroutine(IEnumerator)` → `Coroutine` (plain Unity handle, no callbacks)
-  - `StartAsyncCoroutine(IEnumerator)` → `IAsyncCoroutine` (has `OnComplete(Action)`, `IsRunning`, `IsCompleted`, `StopCoroutine(bool)`)
-  - `StartAsyncCoroutine<T>(IEnumerator, T data)` → `IAsyncCoroutine<T>` (adds `Data` and `OnComplete(Action<T>)`)
-  - `StartDelayCall(Action call, float delay)` → `IAsyncCoroutine` — argument order: action first, delay second
-  - `StartDelayCall<T>(Action<T> call, T data, float delay)` → `IAsyncCoroutine<T>`
-  - `StopCoroutine(Coroutine)`, `StopAllCoroutines()`
+- `StartCoroutine(IEnumerator)` returns a plain Unity `Coroutine`; async variants return `IAsyncCoroutine` / `IAsyncCoroutine<T>` with completion callbacks and state.
+- Delay-call argument order is action first, delay last: `StartDelayCall(Action call, float delay)` and `StartDelayCall<T>(Action<T> call, T data, float delay)`.
+- `StopCoroutine(Coroutine)` and `StopAllCoroutines()` proxy through the host MonoBehaviour.
 
 ### Pooling
-`Runtime/PoolService.cs`, `Runtime/ObjectPool.cs`
+`Runtime/PoolService.cs`, `Runtime/Pooling/ObjectPool.cs`
 - Pool registry: `PoolService : IPoolService` — one pool per type.
 - Pool implementations:
   - `ObjectPool<T>` — generic; lifecycle hooks via direct cast (`IPoolEntitySpawn`, `IPoolEntityDespawn`)
   - `GameObjectPool` — `GameObject` pools; lifecycle hooks via `GetComponent<>()`; manages `SetActive`
   - `GameObjectPool<T> where T : Behaviour` — component-typed; same `GetComponent<>()` hook pattern
-- `IObjectPool<T>` surface: `Spawn()`, `Spawn<TData>(data)`, `Despawn(entity)`, `Despawn(bool onlyFirst, Func<T,bool>)`, `DespawnAll()`, `Reset(uint, T)`, `Clear()`, `SampleEntity`, `SpawnedReadOnly`
-- Lifecycle hook interfaces: `IPoolEntitySpawn`, `IPoolEntitySpawn<T>`, `IPoolEntityDespawn`, `IPoolEntityObject<T>`
+- `IObjectPool<T>` covers spawn/despawn/reset/clear plus `SampleEntity` and `SpawnedReadOnly`; see `docs/pool-service.md` for the full surface.
+- Lifecycle hook interfaces: `IPoolEntitySpawn`, `IPoolEntitySpawn<T>`, `IPoolEntityDespawn`, `IPoolEntityObject<T>`.
 - `CallOnSpawned`/`CallOnDespawned` are **virtual** in `ObjectPoolBase<T>` — override to customize lifecycle dispatch.
 
 ### Persistence
 `Runtime/DataService.cs`
-- `IDataProvider` — read-only interface: `GetData<T>()`, `HasData<T>()`
-- `IDataService : IDataProvider` — full interface: adds `AddOrReplaceData<T>(T)`, `LoadData<T>()`, `SaveData<T>()`, `SaveAllData()`
-- In-memory store keyed by `Type` (not string). Only **reference types** (`where T : class`) supported.
+- `IDataProvider` is read-only (`GetData<T>()`, `HasData<T>()`); `IDataService` adds add/load/save methods.
+- In-memory store is keyed by `Type` (not string). Only **reference types** (`where T : class`) are supported.
 - Disk persistence via `PlayerPrefs` + `Newtonsoft.Json` serialization. Key = `typeof(T).Name`.
 
 ### Time + Manipulation
 `Runtime/TimeService.cs`
-- `ITimeService` — read-only: `DateTimeUtcNow`, `UnityTimeNow`, `UnityScaleTimeNow`, `UnixTimeNow`, plus conversion methods.
-- `ITimeManipulator : ITimeService` — adds `AddTime(float)`, `SetInitialTime(DateTime)`.
+- `ITimeService` is read-only time access + conversion methods; `ITimeManipulator` adds `AddTime(float)` and `SetInitialTime(DateTime)`.
 - `TimeService` implements `ITimeManipulator`. Bind as `ITimeManipulator` for write access; `ITimeService` for read-only consumers.
 
 ### Deterministic RNG
 `Runtime/RngService.cs`
-- `RngData` / `IRngData` — state container (Seed, Count, State array).
-- `IRngService` API: `Next`, `Nextfloat`, `Peek`, `Peekfloat`, `PeekRange(...)`, `Range(...)`, `Restore(int count)`, `Counter`, `Data`
+- `RngData` / `IRngData` hold deterministic state (`Seed`, `Count`, `State`).
+- `IRngService` exposes consuming (`Next`, `Range`) and non-consuming (`Peek`, `PeekRange`) APIs plus `Restore(int count)`.
 - `RngService.CreateRngData(int seed)` — static factory for `RngData`.
 - Float API uses `floatP` from `com.gamelovers.gamedata`.
 
@@ -147,10 +128,7 @@ flowchart TD
 
 ### Build/Version Info
 `Runtime/VersionServices.cs`
-- Static class. Requires `version-data` TextAsset in Resources.
-- `LoadVersionDataAsync()` — async; call once at startup.
-- `VersionExternal` — safe at any time (reads `Application.version`).
-- `VersionInternal`, `Branch`, `Commit`, `BuildNumber` — **throw** if called before `LoadVersionDataAsync()` completes.
+- Static class for `version-data` Resources metadata. `VersionExternal` is always safe; `VersionInternal`, `Branch`, `Commit`, and `BuildNumber` require successful `LoadVersionDataAsync()` first.
 
 ## 3. Key Directories / Files
 
@@ -161,20 +139,17 @@ flowchart TD
   - Pool contracts + implementations (ns `GameLovers.Services.Pooling`, in `Pooling/`): `IPoolService.cs`, `IObjectPool.cs`, `IPoolEntity.cs`, `ObjectPool.cs`, `GameObjectPool.cs`
   - Asset loading contracts + implementations (ns `GameLovers.Services.AssetsImporter`, in `AssetsImporter/`): `IAssetLoader.cs`, `ISceneLoader.cs`, `AddressablesAssetLoader.cs`, `AddressableConfig.cs`, `AssetConfigsScriptableObject.cs`, `AssetLoaderUtils.cs`, `AssetReferenceScene.cs`
 - **Editor**: `Editor/` — all code here is editor-only; do not reference from runtime assemblies
-  - `Editor/Versioning/` (ns `GameLovers.Services.Versioning.Editor`): `VersionEditorUtils.cs`, `GitEditorProcess.cs` — version-data generation (runs on editor load + before builds)
-  - `Editor/AssetsImporter/` (ns `GameLovers.Services.AssetsImporter.Editor`): `AssetsImporter.cs`, `AssetsToolImporter.cs`, `AssetConfigsImporter.cs`, `AddressableIdsGenerator.cs`, `AddressablesIdGeneratorSettings.cs` — asset import pipeline
+  - `Editor/Versioning/` (ns `GameLovers.Services.Versioning.Editor`): `VersionEditorUtils.cs`, `GitEditorProcess.cs`, `VersioningEditorSettings.cs` (ScriptableSingleton → `ProjectSettings/VersioningEditorSettings.asset`), `VersioningMenu.cs` (`Tools > GameLovers > Versioning/...` stubs)
+  - `Editor/AssetsImporter/` (ns `GameLovers.Services.AssetsImporter.Editor`): `AssetConfigsImporter.cs` (public API, user code extends), `AssetsImporterEditorSettings.cs` (ScriptableSingleton → `ProjectSettings/AssetsImporterEditorSettings.asset`), `AssetsImporterEditorUtils.cs` (discovery + import logic), `AssetsImporterMenu.cs` (`Tools > GameLovers > Assets Importer/...` stubs)
+  - `Editor/AddressableIds/` (ns `GameLovers.Services.AddressableIds.Editor`): `AddressableIdsEditorSettings.cs` (ScriptableSingleton → `ProjectSettings/AddressableIdsEditorSettings.asset`, includes `IsValidIdentifier`/`IsValidNamespace` validators), `AddressableIdsGeneratorUtils.cs` (pure generation logic returning `GenerationResult`), `AddressableIdsMenu.cs` (`Tools > GameLovers > Addressable Ids/...` stubs)
+  - `Editor/Explorer/Windows/` (ns `GameLovers.Services.Editor.Explorer`): `ServicesExplorerWindow.cs` (exposes `SelectTab<T>()` and `OpenOnTab<T>()`), `ServicesExplorerWindow.uxml`, `ServicesExplorerWindow.uss`
+  - `Editor/Explorer/Tabs/` (ns `GameLovers.Services.Editor.Explorer.Tabs`): `ServiceTab.cs` (abstract base; includes `MakePrimaryButton` helper) + 13 concrete tabs: `OverviewTab` (takes `ServicesExplorerWindow` reference for tab-jumping), `VersioningTab`, `InstallerTab`, `MessageBrokerTab`, `TickTab`, `CoroutineTab`, `PoolTab`, `DataTab`, `TimeTab`, `RngTab`, `AssetResolverTab`, `AssetsImporterTab`, `AddressableIdsTab`
+  - `Editor/Inspectors/` and `Editor/Scaffolders/`: UIToolkit inspectors/property drawers and `Assets > Create > GameLovers Services > ...` scaffolders; templates live in `Editor/Scaffolders/Templates~/`
   - Assembly: `GameLovers.Services.Editor.asmdef`
 - **Tests**: `Tests/`
   - Before reading, editing, or creating any file in `Tests/`, you **MUST** read [`Tests/AGENTS.md`](Tests/AGENTS.md) first.
-
-  | Folder | Mode | What lives here |
-  |--------|------|----------------|
-  | `EditMode/Unit/` | EditMode | NUnit + NSubstitute; all non-MonoBehaviour services + AssetResolver/AssetLoaderUtils |
-  | `EditMode/Performance/` | EditMode | ObjectPool, MessageBroker perf (`Unity.PerformanceTesting`) |
-  | `PlayMode/Unit/` | PlayMode | TickService, CoroutineService, GameObjectPool, GameObjectPool\<T\> |
-  | `PlayMode/Integration/` | PlayMode | ServiceLifecycle, VersionServices, AddressablesAssetLoader (marked `[Explicit]`) |
-  | `PlayMode/Performance/` | PlayMode | TickService, GameObjectPool perf |
-  | `PlayMode/Smoke/` | PlayMode | `ServicesBootstrapSmokeTest` |
+  - `EditMode/Unit/` covers non-MonoBehaviour services plus AssetResolver/AssetLoaderUtils; `EditMode/Performance/` covers ObjectPool and MessageBroker.
+  - `PlayMode/Unit/` covers Unity-hosted services/pools; `PlayMode/Integration/` includes ServiceLifecycle, VersionServices, and explicit Addressables tests; PlayMode also has performance and smoke tests.
 
 ### Folder Namespace Mapping
 
@@ -219,39 +194,50 @@ The concrete `PoolService` stays in `Runtime/` root under `GameLovers.Services` 
 - `GameObjectPool` / `GameObjectPool<T>` use `GetComponent<>()` for lifecycle hooks on components. `ObjectPool<T>` casts the entity directly. This determines where `IPoolEntitySpawn` etc. must be implemented.
 
 ### Asset Loading (AddressablesAssetLoader)
-- `UnloadAssetAsync<T>` calls `GC.Collect()` + `Resources.UnloadUnusedAssets()` — aggressive for a library call. This is preserved as-is from the original implementation; avoid adding similar patterns in new code.
+- `UnloadAsset<T>` is **synchronous** and returns `void`. It only decrements the Addressables reference count via `Addressables.Release(asset)` and invokes `onCompleteCallback`. The method was renamed from `UnloadAssetAsync` and its return type changed from `UniTask` to `void` in v2.0.0 to accurately reflect its behaviour. Memory reclamation (`Resources.UnloadUnusedAssets()`) is the caller's responsibility at appropriate moments (scene transitions, boot, memory-pressure events). Do NOT add `GC.Collect()` / `Resources.UnloadUnusedAssets()` back into per-asset unload paths — they were removed in v2.0.0 because they caused PlayMode Test Runner crashes and O(total-assets-in-memory) stalls per call. Note: for prefab instances returned by `InstantiateAsync`, `UnloadAsset` does not destroy the `GameObject`; callers must `Object.Destroy` the instance separately.
 - `AddressablesAssetLoader` implements both `IAssetLoader` and `ISceneLoader`. `AssetResolverService` extends it and sits in the root `GameLovers.Services` namespace while its dependencies live in `GameLovers.Services.AssetsImporter`.
 - `AssetResolverService.RequestAsset` and `LoadSceneAsync<TId>` require assets to be pre-registered via `AddConfigs` / `AddAssets` / `AddAsset` (throws `MissingMemberException` otherwise).
 - `AssetConfigsScriptableObject<TId,TAsset>` inherits `AssetConfigsScriptableObjectBase<TId, AssetReference>` (not `<TId, TAsset>`). The generic `TAsset` is captured only as `AssetType`. This is intentional for the Addressables weak-link pattern.
 
 ### AssetsConfigsImporter (Editor)
 - The `TId` type parameter on `AssetsConfigsImporter<TId,TAsset,TScriptableObject>` must satisfy `where TId : Enum`. Passing a non-enum identifier type will not compile.
-- Editor-heavy methods (`AssetsConfigsImporter.Import`, `AddressableIdsGenerator.GenerateAddressableIds`) are intentionally not covered by automated tests — they require `AssetDatabase` access and are validated manually via the Unity Editor Tools menu.
+- Editor-heavy methods (`AssetsConfigsImporter.Import`, `AddressableIdsGeneratorUtils.Generate`) are intentionally not covered by automated tests — they require `AssetDatabase` access and are validated manually via `Tools > GameLovers > Assets Importer / Import Assets Data`, `Tools > GameLovers > Addressable Ids / Generate Addressable Ids`, or the Services Explorer tabs.
+- Settings for both tools are persisted via `ScriptableSingleton` in `ProjectSettings/` (not `Assets/*.asset`): `AssetsImporterEditorSettings.asset` and `AddressableIdsEditorSettings.asset`.
 
 ### CommandService Inheritance
 - `CommandService<TGameLogic>` has `protected TGameLogic GameLogic` and `protected IMessageBrokerService MessageBroker` accessible in subclasses.
 - `ExecuteCommand` is not declared `virtual`; to intercept execution, subclass and shadow with `new`, or implement `ICommandService<TGameLogic>` directly.
 
+### ScriptableSingleton and [SerializeField]
+- Editor settings classes that extend `ScriptableSingleton<T>` and use `[SerializeField]` fields **must** include `using UnityEngine;`. `SerializeFieldAttribute` lives in `UnityEngine`, not `UnityEditor` — the compiler will report `CS0246` if only `using UnityEditor;` is present.
+
+### Services Explorer Tab-Jump API
+- `ServicesExplorerWindow.SelectTab<T>()` and `ServicesExplorerWindow.OpenOnTab<T>()` are constrained `where T : ServiceTab`. Cards, inspector buttons, and menu stubs that navigate to a tab must pass **tab types** (e.g. `AssetsImporterTab`, `AddressableIdsTab`, `VersioningTab`), not **service interface types** (`IAssetResolverService`, `IDataService`, etc.). Do not relax the constraint to `where T : class` — it exists specifically so the `_tabs` list lookup is strongly typed.
+- `OverviewTab` holds a `ServicesExplorerWindow` reference injected via its constructor (`new OverviewTab(this)` in `RegisterTabs()`). Each card's `Open` button calls `_window.SelectTab<TTab>()`. New cards follow the same pattern — add a `BuildXCard()` method that returns a `VisualElement` and registers the tab type at the call site.
+
 ### Version Data Pipeline
-- Runtime expects a Resources TextAsset named `version-data` (`VersionServices.VersionDataFilename`).
-- `VersionEditorUtils` writes `Assets/Configs/Resources/version-data.txt` on editor load and can be invoked before builds. It uses git CLI; failures should be handled gracefully.
-- `VersionExternal` is always safe (reads `Application.version` directly). All other `VersionServices` accessors throw if data has not been loaded — call `LoadVersionDataAsync()` early in boot.
+- Runtime expects a Resources TextAsset named `version-data` (`VersionServices.VersionDataFilename`). The filename is a runtime `const` and is not configurable.
+- `VersionEditorUtils` writes `version-data.txt` on every domain reload (`[InitializeOnLoadMethod]`) and can be invoked by build pipelines. It uses git CLI; failures are handled gracefully.
+- The **write folder** is configurable per-project via `VersioningEditorSettings.instance.ResourcesFolderPath` (default `Assets/Configs/Resources`). Change it from the Versioning tab in the Services Explorer (browse + reset). The chosen folder must contain a `Resources` path segment so `Resources.Load<TextAsset>("version-data")` can locate the file at runtime.
+- `VersioningEditorSettings` persists to `ProjectSettings/VersioningEditorSettings.asset` (editor-only, not committed to version control by default).
+- `VersionExternal` is always safe (reads `Application.version` directly). `VersionInternal`, `Branch`, `Commit`, and `BuildNumber` throw `Exception("Version Data not loaded.")` if data has not been loaded — call `LoadVersionDataAsync()` early in boot.
+
+### Editor Introspection (InternalsVisibleTo)
+
+`Runtime/AssemblyInfo.cs` grants `[assembly: InternalsVisibleTo("GameLovers.Services.Editor")]`.
+Services expose minimal `internal` read-only accessors so the Services Explorer can display state without widening the public API:
+- `Installer.Bindings`, `MainInstaller.InstallerInstance`, `MessageBrokerService.Subscriptions` / `IsPublishing`
+- Tick lists (`OnUpdateList`, `OnFixedUpdateList`, `OnLateUpdateList`) plus internal `TickData`; `CoroutineService.ActiveAsyncCoroutines` under `#if UNITY_EDITOR`
+- `PoolService.Pools`, `DataService.DataEntries`, `TimeService.ExtraTime` / `InitialTime`, `AssetResolverService.AssetMap`
+
+**Rule**: if you add a new service and want to surface it in the Explorer, add a new `internal` read-only accessor (no behavior change) and create a new `ServiceTab` subclass in `Editor/Explorer/Tabs/`. Do not add public accessors solely for editor introspection — use `internal` + `InternalsVisibleTo`.
 
 ### Error Quick-Reference
-
-| Call | Exception | Condition |
-|------|-----------|-----------|
-| `Installer.Bind<T>(instance)` | `ArgumentException` | `T` is not an interface |
-| `Installer.Bind<T>(instance)` (duplicate) | `ArgumentException` | `T` already bound |
-| `MainInstaller.Resolve<T>()` | `KeyNotFoundException` | `T` not bound |
-| `broker.Subscribe(staticMethod)` | `ArgumentException` | `action.Target` is null |
-| `broker.Publish<T>()` | Exception | `Subscribe`/`Unsubscribe` called during iteration |
-| `dataService.GetData<T>()` | `KeyNotFoundException` | `T` not loaded or added |
-| `dataService.LoadData<T>()` | `MissingMethodException` | `T` has no parameterless constructor |
-| `poolService.AddPool<T>(pool)` (duplicate) | `ArgumentException` | Pool for `T` already registered |
-| `VersionServices.*` (except `VersionExternal`) | `NullReferenceException` | `LoadVersionDataAsync()` not called |
-| `assetResolverService.RequestAsset<TId,TAsset>()` | `MissingMemberException` | Asset/scene not registered via `AddAssets` |
-| `assetResolverService.LoadSceneAsync<TId>()` | `MissingMemberException` | Scene not registered via `AddAssets` |
+- `Installer.Bind<T>` throws `ArgumentException` for non-interfaces or duplicate bindings; `MainInstaller.Resolve<T>` throws `KeyNotFoundException` when missing.
+- `MessageBrokerService.Subscribe` rejects static methods; direct `Publish<T>` can throw if the subscription list is mutated during dispatch.
+- `DataService.GetData<T>` throws when missing; `LoadData<T>` requires a parameterless constructor.
+- Duplicate `PoolService.AddPool<T>` calls throw; `AssetResolverService` requests throw `MissingMemberException` until assets/scenes are registered.
+- `VersionInternal`, `Branch`, `Commit`, and `BuildNumber` throw `Exception("Version Data not loaded.")` until version data loads successfully.
 
 ## 5. Coding Standards (Unity 6 / C# 9.0)
 - **C#**: C# 9.0 syntax; explicit namespaces; no global usings.
@@ -269,27 +255,15 @@ Prefer local UPM cache / local packages when needed:
 - UniTask API: `Library/PackageCache/com.cysharp.unitask@<version>/`
 
 ## 7. Package Dev Workflows (common changes)
-
-### Add a new service
-- Add runtime interface + implementation under `Runtime/` (keep UnityEngine usage minimal if possible).
-- Add/adjust tests under `Tests/`.
-- If the service needs Unity callbacks, follow the `TickService`/`CoroutineService` pattern (single `DontDestroyOnLoad` host object + `Dispose()`).
-
-### Add a new command
-- Define a struct (sync, fire-and-forget) or class implementing `IGameCommand<TGameLogic>`.
-- Implement `void Execute(TGameLogic gameLogic, IMessageBrokerService messageBroker)`.
-- Add unit tests under `Tests/EditMode/Unit/CommandServiceTest.cs`.
-
-### Update versioning
-- Ensure `version-data.txt` exists/updates correctly in `Assets/Configs/Resources/`.
-- If changing `VersionServices.VersionData`, update both runtime parsing and `VersionEditorUtils` writing logic.
+- **Add a service**: add runtime interface + implementation under `Runtime/`, keep UnityEngine usage minimal, add/adjust tests, and use the `TickService`/`CoroutineService` host pattern for Unity callbacks.
+- **Add a command**: implement `IGameCommand<TGameLogic>` with `void Execute(TGameLogic, IMessageBrokerService)` and add unit coverage in `Tests/EditMode/Unit/CommandServiceTest.cs`.
+- **Update versioning**: ensure `version-data.txt` still lands under a Resources folder and update both runtime parsing and `VersionEditorUtils` writing when `VersionServices.VersionData` changes.
 
 ## 8. Update Policy
 Update this file when:
-- The binding/service-locator API changes (`Installer`, `MainInstaller`)
-- Core service behavior changes (publish safety rules, tick timing, coroutine completion/cancellation semantics, pooling lifecycle, command execution)
-- Asset loading / import pipeline behavior changes (`AssetResolverService`, `AddressablesAssetLoader`)
-- Versioning pipeline changes (resource filename, editor generator behavior, runtime parsing)
-- Dependencies change (`package.json`, new external types like `floatP`)
-- New services are added
-- Folder layout or namespace mapping changes (update §3 Folder Namespace Carve-Outs)
+- Binding/service-locator APIs, core service behavior, asset loading/import, or versioning behavior changes
+- Dependencies, package layout, namespace mapping, or external type requirements change
+- New services, editor tabs, inspectors, scaffolders, or internal Explorer accessors are added
+- Menu paths under `Tools/GameLovers/...` change (update §3 Editor folder map and §4 gotcha)
+- New `ScriptableSingleton` settings files are added or their `[FilePath]` changes (update §3)
+- `AddressableIdsEditorSettings` or `AssetsImporterEditorSettings` validators change (update §4)

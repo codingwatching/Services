@@ -8,50 +8,47 @@ using UnityEditor.AddressableAssets.Settings;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-// ReSharper disable once CheckNamespace
-
-namespace GameLovers.Services.AssetsImporter.Editor
+namespace GameLovers.Services.AddressableIds.Editor
 {
 	/// <summary>
-	/// Customizes the visual inspector of the Addressable Ids Generator settings asset <seealso cref="AddressablesIdGeneratorSettings"/>
+	/// Result returned by <see cref="AddressableIdsGeneratorUtils.Generate"/> for display in the
+	/// Services Explorer Addressable Ids tab.
 	/// </summary>
-	[CustomEditor(typeof(AddressablesIdGeneratorSettings))]
-	public class AddressablesIdGeneratorSettingsEditor : UnityEditor.Editor
+	internal readonly struct GenerationResult
 	{
-		[MenuItem("Tools/AddressableIds Generator/Generate AddressableIds")]
-		private static void GenerateAddressableIds()
+		public readonly int IdCount;
+		public readonly int LabelCount;
+		public readonly string OutputPath;
+
+		public GenerationResult(int idCount, int labelCount, string outputPath)
+		{
+			IdCount = idCount;
+			LabelCount = labelCount;
+			OutputPath = outputPath;
+		}
+	}
+
+	/// <summary>
+	/// Pure editor utility that generates the Addressable Ids C# script.
+	/// Used by <see cref="AddressableIdsTab"/> and the <c>AddressableIdsMenu</c> stubs.
+	/// Does not reference any <c>[CustomEditor]</c>, <c>[MenuItem]</c>, or Explorer types.
+	/// </summary>
+	internal static class AddressableIdsGeneratorUtils
+	{
+		/// <summary>
+		/// Generates the Addressable Ids script using <paramref name="settings"/> and refreshes the AssetDatabase.
+		/// Returns a <see cref="GenerationResult"/> describing the generated output.
+		/// </summary>
+		public static GenerationResult Generate(AddressableIdsEditorSettings settings)
 		{
 			var assetList = GetAssetList();
-			var settings = AddressablesIdGeneratorSettings.SelectSheetImporter();
 
 			ProcessData(assetList, settings, out var labelMap, out var paths);
-			GenerateScript(assetList, settings, labelMap, paths);
+			GenerateScript(assetList, settings, labelMap, paths, out var outputPath);
 
 			AssetDatabase.Refresh();
-		}
 
-		/// <inheritdoc />
-		public override void OnInspectorGUI()
-		{
-			var settings = (AddressablesIdGeneratorSettings)target;
-			var guiContentFilename = new GUIContent("Script Filename",
-				"Put the script filename that will be generated with all Addressable Ids. " +
-				"This will be also the name of the Object in C# containing all the Addressable Ids and groups.");
-			var guiContentNamespace = new GUIContent("Script Namespace",
-				"Put the script namespace that the Addressable Ids object will be part of.");
-			var guiContentLabel = new GUIContent("Addressables Label",
-				"Put the label name that will be used to mark Addressables." +
-				"This mark is used to set what addressables will have ids generated in the new script." +
-				"NOTE: empty label = generate everything that are addressables");
-
-			settings.ScriptFilename = EditorGUILayout.TextField(guiContentFilename, settings.ScriptFilename);
-			settings.Namespace = EditorGUILayout.TextField(guiContentNamespace, settings.Namespace);
-			settings.AddressableLabel = EditorGUILayout.TextField(guiContentLabel, settings.AddressableLabel);
-
-			if (GUILayout.Button("Generate AddressableIds"))
-			{
-				GenerateAddressableIds();
-			}
+			return new GenerationResult(assetList.Count, labelMap.Count, outputPath);
 		}
 
 		private static List<AddressableAssetEntry> GetAssetList()
@@ -72,26 +69,9 @@ namespace GameLovers.Services.AssetsImporter.Editor
 			return assetList;
 		}
 
-		private static void SaveScript(string scriptString, AddressablesIdGeneratorSettings settings)
-		{
-			var scriptAssets = AssetDatabase.FindAssets($"t:Script {settings.ScriptFilename}");
-			var scriptPath = $"Assets/{settings.ScriptFilename}.cs";
-
-			foreach (var scriptAsset in scriptAssets)
-			{
-				var path = AssetDatabase.GUIDToAssetPath(scriptAsset);
-				if (path.EndsWith($"/{settings.ScriptFilename}.cs"))
-				{
-					scriptPath = path;
-					break;
-				}
-			}
-
-			File.WriteAllText(scriptPath, scriptString);
-		}
-
-		private static void GenerateScript(List<AddressableAssetEntry> assetList, AddressablesIdGeneratorSettings settings,
-											Dictionary<string, IList<AddressableAssetEntry>> labelMap, List<string> paths)
+		private static void GenerateScript(List<AddressableAssetEntry> assetList, AddressableIdsEditorSettings settings,
+		                                   Dictionary<string, IList<AddressableAssetEntry>> labelMap, List<string> paths,
+		                                   out string outputPath)
 		{
 			var stringBuilder = new StringBuilder();
 
@@ -134,10 +114,30 @@ namespace GameLovers.Services.AssetsImporter.Editor
 
 			stringBuilder.AppendLine("}");
 
-			SaveScript(stringBuilder.ToString(), settings);
+			outputPath = SaveScript(stringBuilder.ToString(), settings);
 		}
 
-		private static void GenerateLoopUpMethods(StringBuilder stringBuilder, AddressablesIdGeneratorSettings settings)
+		private static string SaveScript(string scriptString, AddressableIdsEditorSettings settings)
+		{
+			var scriptAssets = AssetDatabase.FindAssets($"t:Script {settings.ScriptFilename}");
+			var scriptPath = $"Assets/{settings.ScriptFilename}.cs";
+
+			foreach (var scriptAsset in scriptAssets)
+			{
+				var path = AssetDatabase.GUIDToAssetPath(scriptAsset);
+
+				if (path.EndsWith($"/{settings.ScriptFilename}.cs"))
+				{
+					scriptPath = path;
+					break;
+				}
+			}
+
+			File.WriteAllText(scriptPath, scriptString);
+			return scriptPath;
+		}
+
+		private static void GenerateLoopUpMethods(StringBuilder stringBuilder, AddressableIdsEditorSettings settings)
 		{
 			stringBuilder.AppendLine($"\t\tpublic static IList<{nameof(AddressableConfig)}> Configs => _addressableConfigs;");
 			stringBuilder.AppendLine($"\t\tpublic static IList<string> Labels => _addressableLabels;");
@@ -238,26 +238,28 @@ namespace GameLovers.Services.AssetsImporter.Editor
 
 		private static string GenerateAddressableConfig(AddressableAssetEntry addressableAssetEntry, int index)
 		{
-			var asseType = AssetDatabase.GetMainAssetTypeAtPath(addressableAssetEntry.AssetPath);
+			var assetType = AssetDatabase.GetMainAssetTypeAtPath(addressableAssetEntry.AssetPath);
 
-			asseType = asseType == typeof(UnityEditor.SceneAsset) ? typeof(UnityEngine.SceneManagement.Scene) : asseType;
-			
-			Assert.IsNotNull(asseType, $"Failed to get asset type for {addressableAssetEntry.AssetPath}");
+			assetType = assetType == typeof(UnityEditor.SceneAsset)
+				? typeof(UnityEngine.SceneManagement.Scene)
+				: assetType;
+
+			Assert.IsNotNull(assetType, $"Failed to get asset type for {addressableAssetEntry.AssetPath}");
 
 			return $"new {nameof(AddressableConfig)}({index.ToString()}, \"{addressableAssetEntry.address}\", \"{addressableAssetEntry.AssetPath}\", " +
-				   $"typeof({asseType}), new [] {{{GenerateLabels(new List<string>(addressableAssetEntry.labels))}}})";
+			       $"typeof({assetType}), new [] {{{GenerateLabels(new List<string>(addressableAssetEntry.labels))}}})";
 		}
 
-		private static void ProcessData(IList<AddressableAssetEntry> assetList, AddressablesIdGeneratorSettings settings,
-										out Dictionary<string, IList<AddressableAssetEntry>> labelMap, out List<string> paths)
+		private static void ProcessData(IList<AddressableAssetEntry> assetList, AddressableIdsEditorSettings settings,
+		                                out Dictionary<string, IList<AddressableAssetEntry>> labelMap, out List<string> paths)
 		{
 			labelMap = new Dictionary<string, IList<AddressableAssetEntry>>();
 			paths = new List<string>();
 
 			for (var i = assetList.Count - 1; i > -1; --i)
 			{
-				// empty label means generate everything
-				if(!string.IsNullOrEmpty(settings.AddressableLabel))
+				// Empty label means generate everything.
+				if (!string.IsNullOrEmpty(settings.AddressableLabel))
 				{
 					foreach (var label in assetList[i].labels)
 					{
@@ -275,7 +277,6 @@ namespace GameLovers.Services.AssetsImporter.Editor
 						list.Add(assetList[i]);
 					}
 
-					// Check if is an asset to generate
 					if (!assetList[i].labels.Contains(settings.AddressableLabel))
 					{
 						assetList.RemoveAt(i);
@@ -304,7 +305,6 @@ namespace GameLovers.Services.AssetsImporter.Editor
 				var filetype = assetList[i].address.Substring(assetList[i].address.LastIndexOf('.') + 1);
 
 				name = addedNames.Contains(name) ? $"{name}_{filetype}" : name;
-
 				addedNames.Add(name);
 
 				stringBuilder.Append("\t\t");

@@ -10,7 +10,9 @@ namespace GameLovers.Services
 	/// </remarks>
 	public static class MainInstaller
 	{
-		private static readonly IInstaller _installer = new Installer();
+		private static readonly Installer _installer = new Installer();
+
+		internal static Installer InstallerInstance => _installer;
 
 		/// <inheritdoc cref="IInstaller.Bind{T}"/>
 		public static void Bind<T>(T instance) where T : class

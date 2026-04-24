@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using Action = System.Action;
 using Object = UnityEngine.Object;
@@ -104,6 +105,11 @@ namespace GameLovers.Services
 	{
 		private CoroutineServiceMonoBehaviour _serviceObject;
 
+#if UNITY_EDITOR
+		private readonly List<IAsyncCoroutine> _activeAsyncCoroutines = new List<IAsyncCoroutine>();
+		internal IReadOnlyList<IAsyncCoroutine> ActiveAsyncCoroutines => _activeAsyncCoroutines;
+#endif
+
 		public CoroutineService()
 		{
 			var gameObject = new GameObject(nameof(CoroutineServiceMonoBehaviour));
@@ -144,6 +150,11 @@ namespace GameLovers.Services
 
 			asyncCoroutine.SetCoroutine(_serviceObject.ExternalStartCoroutine(InternalCoroutine(routine, asyncCoroutine)));
 
+#if UNITY_EDITOR
+			_activeAsyncCoroutines.Add(asyncCoroutine);
+			asyncCoroutine.OnComplete(() => _activeAsyncCoroutines.Remove(asyncCoroutine));
+#endif
+
 			return asyncCoroutine;
 		}
 
@@ -153,6 +164,11 @@ namespace GameLovers.Services
 			var asyncCoroutine = new AsyncCoroutine<T>(this, data);
 
 			asyncCoroutine.SetCoroutine(_serviceObject.ExternalStartCoroutine(InternalCoroutine(routine, asyncCoroutine)));
+
+#if UNITY_EDITOR
+			_activeAsyncCoroutines.Add(asyncCoroutine);
+			asyncCoroutine.OnComplete(() => _activeAsyncCoroutines.Remove(asyncCoroutine));
+#endif
 
 			return asyncCoroutine;
 		}
@@ -165,6 +181,11 @@ namespace GameLovers.Services
 			asyncCoroutine.OnComplete(call);
 			asyncCoroutine.SetCoroutine(_serviceObject.ExternalStartCoroutine(InternalDelayCoroutine(delay, asyncCoroutine)));
 
+#if UNITY_EDITOR
+			_activeAsyncCoroutines.Add(asyncCoroutine);
+			asyncCoroutine.OnComplete(() => _activeAsyncCoroutines.Remove(asyncCoroutine));
+#endif
+
 			return asyncCoroutine;
 		}
 
@@ -175,6 +196,11 @@ namespace GameLovers.Services
 
 			asyncCoroutine.OnComplete(call);
 			asyncCoroutine.SetCoroutine(_serviceObject.ExternalStartCoroutine(InternalDelayCoroutine(delay, asyncCoroutine)));
+
+#if UNITY_EDITOR
+			_activeAsyncCoroutines.Add(asyncCoroutine);
+			asyncCoroutine.OnComplete(() => _activeAsyncCoroutines.Remove(asyncCoroutine));
+#endif
 
 			return asyncCoroutine;
 		}

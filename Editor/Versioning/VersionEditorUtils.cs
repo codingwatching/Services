@@ -13,8 +13,6 @@ namespace GameLovers.Services.Versioning.Editor
 	public static class VersionEditorUtils
 	{
 		private const int ShortenedCommitLength = 8;
-		private const string AssetsPath = "Assets";
-		private const string FilePath = "Configs/Resources";
 
 		/// <summary>
 		/// Set the internal version before building the app.
@@ -113,7 +111,10 @@ namespace GameLovers.Services.Versioning.Editor
 		/// </summary>
 		private static void SaveVersionData(string serializedData)
 		{
-			var absDirPath = Path.Combine(Application.dataPath, FilePath);
+			var relFolderPath = VersioningEditorSettings.instance.ResourcesFolderPath;
+			var projectRoot = Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
+			var absDirPath = Path.Combine(projectRoot, relFolderPath);
+
 			if (!Directory.Exists(absDirPath))
 			{
 				Directory.CreateDirectory(absDirPath);
@@ -122,20 +123,18 @@ namespace GameLovers.Services.Versioning.Editor
 			// delete old file with incorrect extension
 			const string assetExtension = ".asset";
 			var absFilePath = Path.Combine(absDirPath, VersionServices.VersionDataFilename);
+			var assetRelPath = relFolderPath + "/" + Path.ChangeExtension(VersionServices.VersionDataFilename, assetExtension);
+
 			if (File.Exists(Path.ChangeExtension(absFilePath, assetExtension)))
 			{
-				AssetDatabase.DeleteAsset(
-					Path.Combine(AssetsPath, FilePath,
-						Path.ChangeExtension(VersionServices.VersionDataFilename, assetExtension)));
+				AssetDatabase.DeleteAsset(assetRelPath);
 			}
 
 			// create new text file
 			const string textExtension = ".txt";
 			File.WriteAllText(Path.ChangeExtension(absFilePath, textExtension), serializedData);
 
-			AssetDatabase.ImportAsset(
-				Path.Combine(AssetsPath, FilePath,
-					Path.ChangeExtension(VersionServices.VersionDataFilename, textExtension)));
+			AssetDatabase.ImportAsset(relFolderPath + "/" + Path.ChangeExtension(VersionServices.VersionDataFilename, textExtension));
 		}
 	}
 }

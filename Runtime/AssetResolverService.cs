@@ -128,6 +128,9 @@ namespace GameLovers.Services
 		private readonly IDictionary<Type, IDictionary<Type, IDictionary>> _assetMap =
 			new Dictionary<Type, IDictionary<Type, IDictionary>>();
 
+		internal IReadOnlyDictionary<Type, IDictionary<Type, IDictionary>> AssetMap =>
+			(IReadOnlyDictionary<Type, IDictionary<Type, IDictionary>>)_assetMap;
+
 		private Sprite _errorSprite;
 		private GameObject _errorCube;
 		private Material _errorMaterial;

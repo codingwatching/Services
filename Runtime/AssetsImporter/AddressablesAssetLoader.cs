@@ -56,14 +56,9 @@ namespace GameLovers.Services.AssetsImporter
 		}
 
 		/// <inheritdoc />
-		public async UniTask UnloadAssetAsync<T>(T asset, Action onCompleteCallback = null)
+		public void UnloadAsset<T>(T asset, Action onCompleteCallback = null)
 		{
 			Addressables.Release(asset);
-			// Force a garbage collection and unload unused assets
-			GC.Collect();
-			GC.WaitForPendingFinalizers();
-
-			await Resources.UnloadUnusedAssets().ToUniTask();
 
 			onCompleteCallback?.Invoke();
 		}

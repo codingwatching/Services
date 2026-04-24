@@ -7,8 +7,8 @@ Runtime access to build version and git metadata.
 **Key Points:**
 - Requires `version-data.txt` TextAsset in `Resources/` (resource name: `VersionServices.VersionDataFilename`)
 - `VersionEditorUtils` writes `Assets/Configs/Resources/version-data.txt` on editor load and before builds; it uses git CLI
-- Call `LoadVersionDataAsync()` once at startup — **all properties except `VersionExternal` throw** `NullReferenceException` if called before data is loaded
 - `VersionExternal` is always safe (reads `Application.version` directly, no async requirement)
+- Call `LoadVersionDataAsync()` once at startup — `VersionInternal`, `Branch`, `Commit`, and `BuildNumber` throw `Exception("Version Data not loaded.")` until data is loaded successfully
 
 ```csharp
 using GameLovers.Services;
@@ -19,7 +19,7 @@ await VersionServices.LoadVersionDataAsync();
 // Safe at any time — reads Application.version directly
 string externalVersion = VersionServices.VersionExternal;   // "1.0.1"
 
-// These require LoadVersionDataAsync() to have completed first
+// These require LoadVersionDataAsync() to have completed successfully
 string internalVersion = VersionServices.VersionInternal;   // "1.0.1-42.main.abc123"
 string branch          = VersionServices.Branch;            // "main"
 string commit          = VersionServices.Commit;            // "abc123"
@@ -33,4 +33,4 @@ bool outdated = VersionServices.IsOutdatedVersion("1.2.0");
 
 | Call | Exception | Condition |
 |------|-----------|-----------|
-| Any accessor except `VersionExternal` | `NullReferenceException` | `LoadVersionDataAsync()` not called |
+| `VersionInternal`, `Branch`, `Commit`, `BuildNumber` | `Exception` | Version data is not loaded |
