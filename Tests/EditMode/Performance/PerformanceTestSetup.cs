@@ -1,14 +1,11 @@
-using UnityEngine;
-using UnityEngine.TestTools;
-
-#if UNITY_EDITOR
-using UnityEditor;
-using Unity.PerformanceTesting.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-#endif
+using Unity.PerformanceTesting.Data;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 // ReSharper disable once CheckNamespace
 
@@ -21,22 +18,47 @@ namespace GameLoversEditor.Services.Tests
 	/// </summary>
 	public class PerformanceTestSetup : IPrebuildSetup
 	{
+		// Mirrors Unity.PerformanceTesting.Runtime.Utils.PlayerPrefKeyRunJSON / PlayerPrefKeySettingsJSON.
+		// Both keys are reproduced here because Utils is `internal` to com.unity.test-framework.performance.
 		private const string PlayerPrefKeyRunJSON = "PT_Run";
+		private const string PlayerPrefKeySettingsJSON = "PT_Settings";
+
+		// Default RunSettings JSON. MeasurementCount = -1 is the package's "no override" sentinel —
+		// MethodMeasurement.SettingsOverride() early-returns when count < 0, preserving the per-test
+		// .WarmupCount(...) / .MeasurementCount(...) configuration.
+		private const string DefaultRunSettingsJson = "{\"MeasurementCount\":-1}";
 
 		public void Setup()
 		{
-#if UNITY_EDITOR
-			// Create and save run info to PlayerPrefs (required by Performance Testing Package in EditMode)
-			// Note: RunSettings is internal to the package, but only Run metadata is required to prevent
-			// the NullReferenceException in Metadata.SetRuntimeSettings()
+			InitializePerformanceTestMetadata();
+		}
+
+		/// <summary>
+		/// Initializes performance test metadata. Call this from [OneTimeSetUp] in test fixtures
+		/// to ensure metadata is available before tests run.
+		/// </summary>
+		/// <remarks>
+		/// Two PlayerPrefs entries are required to make `Measure.Method(...).Run()` succeed in EditMode:
+		///   - PT_Run      — full Run metadata (editor info, dependencies, build settings); consumed by
+		///                   Metadata.SetRuntimeSettings() when results are emitted.
+		///   - PT_Settings — RunSettings (measurement-count override); consumed by
+		///                   MethodMeasurement.SettingsOverride() *before* the first warmup runs.
+		/// Omitting PT_Settings causes RunSettings.Instance to lazy-load from an empty JSON string,
+		/// JsonUtility throws, ResourcesLoader swallows the exception and returns null, and
+		/// SettingsOverride() then NREs on `RunSettings.Instance.MeasurementCount`.
+		/// </remarks>
+		public static void InitializePerformanceTestMetadata()
+		{
 			var run = CreateRunInfo();
 			SaveToPrefs(run, PlayerPrefKeyRunJSON);
 
+			PlayerPrefs.SetString(PlayerPrefKeySettingsJSON, DefaultRunSettingsJson);
+
+			PlayerPrefs.Save();
+
 			Debug.Log("[PerformanceTestSetup] Performance test metadata initialized.");
-#endif
 		}
 
-#if UNITY_EDITOR
 		private static Run CreateRunInfo()
 		{
 			var run = new Run
@@ -111,6 +133,5 @@ namespace GameLoversEditor.Services.Tests
 			var json = JsonUtility.ToJson(obj, true);
 			PlayerPrefs.SetString(key, json);
 		}
-#endif
 	}
 }

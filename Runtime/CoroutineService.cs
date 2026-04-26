@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using Action = System.Action;
 using Object = UnityEngine.Object;
@@ -36,7 +37,11 @@ namespace GameLovers.Services
 		/// </summary>
 		void OnComplete(Action onComplete);
 		/// <summary>
-		/// Stops the execution of this coroutine
+		/// Stops the execution of this coroutine. After this call <see cref="IsCompleted"/>
+		/// becomes <c>true</c> and <see cref="IsRunning"/> becomes <c>false</c>.
+		/// When <paramref name="triggerOnComplete"/> is <c>true</c> the callback registered
+		/// via <see cref="OnComplete(System.Action)"/> is invoked; when <c>false</c> the
+		/// callback is suppressed. No-op if the coroutine has already completed.
 		/// </summary>
 		void StopCoroutine(bool triggerOnComplete = false);
 	}
@@ -104,6 +109,11 @@ namespace GameLovers.Services
 	{
 		private CoroutineServiceMonoBehaviour _serviceObject;
 
+#if UNITY_EDITOR
+		private readonly List<IAsyncCoroutine> _activeAsyncCoroutines = new List<IAsyncCoroutine>();
+		internal IReadOnlyList<IAsyncCoroutine> ActiveAsyncCoroutines => _activeAsyncCoroutines;
+#endif
+
 		public CoroutineService()
 		{
 			var gameObject = new GameObject(nameof(CoroutineServiceMonoBehaviour));
@@ -144,6 +154,10 @@ namespace GameLovers.Services
 
 			asyncCoroutine.SetCoroutine(_serviceObject.ExternalStartCoroutine(InternalCoroutine(routine, asyncCoroutine)));
 
+#if UNITY_EDITOR
+			TrackForEditor(asyncCoroutine);
+#endif
+
 			return asyncCoroutine;
 		}
 
@@ -153,6 +167,10 @@ namespace GameLovers.Services
 			var asyncCoroutine = new AsyncCoroutine<T>(this, data);
 
 			asyncCoroutine.SetCoroutine(_serviceObject.ExternalStartCoroutine(InternalCoroutine(routine, asyncCoroutine)));
+
+#if UNITY_EDITOR
+			TrackForEditor(asyncCoroutine);
+#endif
 
 			return asyncCoroutine;
 		}
@@ -165,6 +183,10 @@ namespace GameLovers.Services
 			asyncCoroutine.OnComplete(call);
 			asyncCoroutine.SetCoroutine(_serviceObject.ExternalStartCoroutine(InternalDelayCoroutine(delay, asyncCoroutine)));
 
+#if UNITY_EDITOR
+			TrackForEditor(asyncCoroutine);
+#endif
+
 			return asyncCoroutine;
 		}
 
@@ -176,8 +198,24 @@ namespace GameLovers.Services
 			asyncCoroutine.OnComplete(call);
 			asyncCoroutine.SetCoroutine(_serviceObject.ExternalStartCoroutine(InternalDelayCoroutine(delay, asyncCoroutine)));
 
+#if UNITY_EDITOR
+			TrackForEditor(asyncCoroutine);
+#endif
+
 			return asyncCoroutine;
 		}
+
+#if UNITY_EDITOR
+		// Editor-only tracking. Uses the AsyncCoroutine.InternalCleanup event (separate from
+		// the user-facing _onComplete) so user callbacks set via OnComplete(...) are not
+		// overwritten by tracking-removal lambdas, and tracking removal still fires when the
+		// coroutine is stopped via IAsyncCoroutine.StopCoroutine(...).
+		private void TrackForEditor(AsyncCoroutine asyncCoroutine)
+		{
+			_activeAsyncCoroutines.Add(asyncCoroutine);
+			asyncCoroutine.InternalCleanup += () => _activeAsyncCoroutines.Remove(asyncCoroutine);
+		}
+#endif
 
 		/// <inheritdoc />
 		public void StopCoroutine(Coroutine coroutine)
@@ -227,8 +265,14 @@ namespace GameLovers.Services
 			private readonly ICoroutineService _coroutineService;
 			
 			private Action _onComplete;
+
+			// Editor-only tracking hook. Distinct from _onComplete so that registering a
+			// user callback via OnComplete(...) does NOT overwrite the tracking lambda
+			// (and vice versa). Always fired once per coroutine lifecycle, on either
+			// natural completion or explicit StopCoroutine.
+			public event Action InternalCleanup;
 		
-			public bool IsRunning => Coroutine != null;
+			public bool IsRunning => Coroutine != null && !IsCompleted;
 			public bool IsCompleted { get; private set; }
 			public Coroutine Coroutine { get; private set; }
 			public float StartTime { get; } = Time.time;
@@ -252,9 +296,22 @@ namespace GameLovers.Services
 
 			public void StopCoroutine(bool triggerOnComplete = false)
 			{
+				if (IsCompleted)
+				{
+					return;
+				}
+
 				_coroutineService.StopCoroutine(Coroutine);
-				
-				OnCompleteTrigger();
+
+				IsCompleted = true;
+				Coroutine = null;
+
+				if (triggerOnComplete)
+				{
+					OnCompleteTrigger();
+				}
+
+				InternalCleanup?.Invoke();
 			}
 
 			public void Completed()
@@ -268,6 +325,7 @@ namespace GameLovers.Services
 				Coroutine = null;
 
 				OnCompleteTrigger();
+				InternalCleanup?.Invoke();
 			}
 
 			protected virtual void OnCompleteTrigger()

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using GameLovers.Services;
+using GameLovers.Services.Pooling;
 using NSubstitute;
 using NUnit.Framework;
 
@@ -18,6 +20,15 @@ namespace GameLoversEditor.Services.Tests
 		{
 			public void OnSpawn() {}
 			public void OnDespawn() {}
+		}
+
+		public interface IMockDataEntity : IPoolEntitySpawn, IPoolEntityDespawn, IPoolEntitySpawn<int> { }
+		public class MockDataEntity : IMockDataEntity
+		{
+			public int SpawnData;
+			public void OnSpawn() {}
+			public void OnDespawn() {}
+			public void OnSpawn(int data) => SpawnData = data;
 		}
 
 		[SetUp]
@@ -112,6 +123,36 @@ namespace GameLoversEditor.Services.Tests
 			_poolService = new PoolService();
 			
 			Assert.DoesNotThrow(() => _poolService.RemovePool<IMockPoolableEntity>());
+		}
+
+		[Test]
+		public void SpawnWithData_Successfully()
+		{
+			var dataPool = new ObjectPool<IMockDataEntity>(0, () => new MockDataEntity());
+			_poolService.AddPool(dataPool);
+
+			var entity = _poolService.Spawn<IMockDataEntity, int>(42);
+
+			Assert.IsNotNull(entity);
+			Assert.AreEqual(42, ((MockDataEntity)entity).SpawnData);
+		}
+
+		[Test]
+		public void Clear_ReturnsAllPools()
+		{
+			IDictionary<Type, IObjectPool> cleared = _poolService.Clear();
+
+			Assert.AreEqual(1, cleared.Count);
+			Assert.IsTrue(cleared.ContainsKey(typeof(IMockPoolableEntity)));
+			Assert.IsFalse(_poolService.TryGetPool<IMockPoolableEntity>(out _));
+		}
+
+		[Test]
+		public void Dispose_RemovesAndDisposesPool()
+		{
+			_poolService.Dispose<IMockPoolableEntity>(disposeSampleEntity: false);
+
+			Assert.IsFalse(_poolService.TryGetPool<IMockPoolableEntity>(out _));
 		}
 	}
 }

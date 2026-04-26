@@ -2,9 +2,9 @@
 
 [![Unity Version](https://img.shields.io/badge/Unity-6000.0%2B-blue.svg)](https://unity3d.com/get-unity/download)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/github/v/tag/CoderGamester/Services?label=version)](CHANGELOG.md)
 
-> **Quick Links**: [Installation](#installation) | [Quick Start](#quick-start) | [Services](#services-documentation) | [Contributing](#contributing)
+> **Quick Links**: [Installation](#installation) | [When to use](#when-to-use) | [Quick Start](#quick-start) | [Services](#services-at-a-glance) | [Docs](docs/README.md) | [Changelog](CHANGELOG.md) | [Migration Guide](MIGRATION.md)
 
 ## Why Use This Package?
 
@@ -21,56 +21,39 @@ Building robust game architecture in Unity often leads to tightly coupled system
 | **Non-deterministic gameplay** | Deterministic RNG service with state save/restore |
 | **Version tracking complexity** | Build version service with git commit/branch metadata |
 
-**Built for production:** Zero external dependencies beyond Unity. Minimal per-frame allocations. Used in real games.
+**Built for production:** Minimal per-frame allocations. Used in real games.
 
-### Key Features
+---
 
-- **🏗️ Service Locator** - Simple DI-lite pattern with `MainInstaller`
-- **📨 Message Broker** - Type-safe decoupled pub/sub communication
-- **⏱️ Tick Service** - Centralized Unity update cycle management
-- **🔄 Coroutine Host** - Run coroutines from pure C# classes
-- **🎯 Object Pooling** - Efficient GameObject and object reuse
-- **💾 Data Persistence** - Cross-platform save/load with JSON serialization
-- **🎲 Deterministic RNG** - Reproducible random number generation
-- **📋 Version Services** - Runtime access to build/git metadata
-- **🎮 Command Pattern** - Decoupled command execution layer
-- **⏰ Time Service** - Unified access to Unity/Unix/DateTime
+## When to use
+
+**Use this package when** you want a lightweight set of standalone services you can pick and choose from, without committing to a full DI framework.
+
+**Consider alternatives** (e.g. VContainer, Zenject) when you need scoped lifetimes, factory bindings, or constructor injection across many types. In that case, use `Installer` directly (not `MainInstaller`) for multi-interface binding within your DI composition root.
 
 ---
 
 ## System Requirements
 
 - **[Unity](https://unity.com/download)** 6000.0+ (Unity 6)
-- **[GameLovers DataExtensions](https://github.com/CoderGamester/com.gamelovers.dataextensions)** (v0.6.2) - Automatically resolved
+- **[GameLovers GameData](https://github.com/CoderGamester/com.gamelovers.gamedata)** (v1.0.0) — automatically resolved
+- **[Unity Addressables](https://docs.unity3d.com/Packages/com.unity.addressables@latest)** (≥ 1.21.20) — automatically resolved
+- **[UniTask](https://github.com/Cysharp/UniTask)** (≥ 2.5.10) — automatically resolved
 
-### Compatibility Matrix
-
-| Unity Version | Status | Notes |
-|---------------|--------|-------|
-| 6000.0+ (Unity 6) | ✅ Fully Tested | Primary development target |
-| 2022.3 LTS | ⚠️ Untested | May require minor adaptations |
-
-| Platform | Status | Notes |
-|----------|--------|-------|
-| Standalone (Windows/Mac/Linux) | ✅ Supported | Full feature support |
-| WebGL | ✅ Supported | Full feature support |
-| Mobile (iOS/Android) | ✅ Supported | Full feature support |
-| Console | ⚠️ Untested | Should work without modifications |
+| Unity Version | Status |
+|---|---|
+| 6000.0+ (Unity 6) | ✅ Fully Tested |
+| 2022.3 LTS | ⚠️ Untested |
 
 ## Installation
 
 ### Via Unity Package Manager (Recommended)
 
 1. Open Unity Package Manager (`Window` → `Package Manager`)
-2. Click the `+` button and select `Add package from git URL`
-3. Enter the following URL:
-   ```
-   https://github.com/CoderGamester/com.gamelovers.services.git
-   ```
+2. Click `+` → `Add package from git URL`
+3. Enter: `https://github.com/CoderGamester/com.gamelovers.services.git`
 
 ### Via manifest.json
-
-Add the following line to your project's `Packages/manifest.json`:
 
 ```json
 {
@@ -82,52 +65,27 @@ Add the following line to your project's `Packages/manifest.json`:
 
 ---
 
-## Package Structure
-
-```
-Runtime/
-├── Installer.cs              # Core DI container
-├── MainInstaller.cs          # Static global service locator
-├── MessageBrokerService.cs   # Pub/sub messaging
-├── TickService.cs            # Update cycle management
-├── CoroutineService.cs       # MonoBehaviour-free coroutines
-├── PoolService.cs            # Pool registry
-├── ObjectPool.cs             # Pool implementations
-├── DataService.cs            # Persistence layer
-├── TimeService.cs            # Time abstraction
-├── RngService.cs             # Deterministic RNG
-├── VersionServices.cs        # Build/git metadata
-└── CommandService.cs         # Command pattern
-
-Editor/
-├── VersionEditorUtils.cs     # Version data generation
-└── GitEditorProcess.cs       # Git CLI integration
-
-Tests/
-├── EditMode/                 # Unit tests
-└── PlayMode/                 # Integration tests
-```
-
-### Key Files
+## Key Components
 
 | Component | Responsibility |
 |-----------|----------------|
-| **MainInstaller** | Static service locator for global scope bindings |
-| **Installer** | Instance-based DI container (for scoped installations) |
-| **IMessageBrokerService** | Type-safe pub/sub messaging interface |
+| **MainInstaller** | Static service locator for global-scope single-interface bindings |
+| **Installer** | Instance-based DI container (supports multi-interface binding) |
+| **IMessageBrokerService** | Type-safe pub/sub messaging |
 | **ITickService** | Centralized Update/FixedUpdate/LateUpdate callbacks |
-| **ICoroutineService** | Run coroutines without MonoBehaviour |
+| **ICoroutineService** | Run coroutines from pure C# classes |
 | **IPoolService** | Object pool registry and management |
-| **IDataService** | Cross-platform data persistence |
-| **ITimeService** | Unified time access (Unity/Unix/DateTime) |
+| **IDataService / IDataProvider** | Cross-platform data persistence (read-write / read-only) |
+| **ITimeService / ITimeManipulator** | Unified time access with offset/sync manipulation |
 | **IRngService** | Deterministic random number generation |
-| **VersionServices** | Runtime build/git metadata |
+| **ICommandService\<TGameLogic\>** | Typed command execution layer |
+| **VersionServices** | Runtime access to build/git metadata |
+| **AssetResolverService** | Addressables-based typed asset loading by id + asset type |
+| **IAssetLoader / ISceneLoader** | Low-level addressable load/unload/instantiate interfaces |
 
 ---
 
 ## Quick Start
-
-### 1. Initialize Services
 
 ```csharp
 using UnityEngine;
@@ -137,49 +95,26 @@ public class GameBootstrap : MonoBehaviour
 {
     void Awake()
     {
-        // Create service instances
         var messageBroker = new MessageBrokerService();
-        var tickService = new TickService();
-        var dataService = new DataService();
-        
-        // Bind to MainInstaller (interfaces only)
+        var tickService   = new TickService();
+        var dataService   = new DataService();
+
         MainInstaller.Bind<IMessageBrokerService>(messageBroker);
         MainInstaller.Bind<ITickService>(tickService);
         MainInstaller.Bind<IDataService>(dataService);
     }
-    
+
     void OnDestroy()
     {
-        // Clean up on shutdown
         MainInstaller.CleanDispose<ITickService>();
         MainInstaller.Clean();
     }
 }
-```
 
-### 2. Use Services Anywhere
+// Resolve anywhere
+var broker = MainInstaller.Resolve<IMessageBrokerService>();
+broker.Subscribe<PlayerDamagedMessage>(OnPlayerDamaged);
 
-```csharp
-using GameLovers.Services;
-
-public class PlayerController
-{
-    public PlayerController()
-    {
-        // Resolve services
-        var messageBroker = MainInstaller.Resolve<IMessageBrokerService>();
-        
-        // Subscribe to events
-        messageBroker.Subscribe<PlayerDamagedMessage>(OnPlayerDamaged);
-    }
-    
-    private void OnPlayerDamaged(PlayerDamagedMessage message)
-    {
-        // Handle event
-    }
-}
-
-// Define messages as structs implementing IMessage
 public struct PlayerDamagedMessage : IMessage
 {
     public int PlayerId;
@@ -189,347 +124,218 @@ public struct PlayerDamagedMessage : IMessage
 
 ---
 
-## Services Documentation
+## Services at a Glance
 
-### Main Installer
+Full API reference and recipes live in [`docs/`](docs/README.md). Short examples below.
 
-Lightweight service locator for managing dependencies globally.
-
-**Key Points:**
-- Only **interfaces** can be bound (throws if you try to bind a concrete type)
-- Binding is **instance-based** - you provide the instance, not the type
-- `MainInstaller` is a static class wrapping a single `Installer`
+### Service Locator (MainInstaller / Installer)
 
 ```csharp
-// Bind services (interfaces only)
 MainInstaller.Bind<IMessageBrokerService>(new MessageBrokerService());
-MainInstaller.Bind<IDataService>(new DataService());
+var broker = MainInstaller.Resolve<IMessageBrokerService>();
+MainInstaller.TryResolve<IDataService>(out var ds);
+MainInstaller.CleanDispose<ITickService>();
+MainInstaller.Clean();
 
-// Resolve services
-var messageBroker = MainInstaller.Resolve<IMessageBrokerService>();
-
-// Safe resolve (doesn't throw)
-if (MainInstaller.TryResolve<IDataService>(out var dataService))
-{
-    dataService.SaveData();
-}
-
-// Clean up
-MainInstaller.Clean<IMessageBrokerService>(); // Remove single binding
-MainInstaller.CleanDispose<ITickService>();   // Dispose + remove
-MainInstaller.Clean();                         // Clear all bindings
+// Multi-interface binding — use Installer directly
+var installer = new Installer();
+installer.Bind<TimeService, ITimeService, ITimeManipulator>(new TimeService());
 ```
 
----
-
-### Message Broker Service
-
-Decoupled pub/sub communication between game systems.
-
-**Key Points:**
-- Static method subscriptions are **not supported** (uses `action.Target`)
-- Use `PublishSafe` when subscribers might subscribe/unsubscribe during handling
+### Message Broker
 
 ```csharp
-// Define messages
-public struct EnemyDefeatedMessage : IMessage
-{
-    public int EnemyId;
-    public Vector3 Position;
-}
-
-var broker = new MessageBrokerService();
-
-// Subscribe (instance methods only)
+// static method subscriptions are NOT supported
 broker.Subscribe<EnemyDefeatedMessage>(OnEnemyDefeated);
-
-// Publish
-broker.Publish(new EnemyDefeatedMessage { EnemyId = 42, Position = Vector3.zero });
-
-// Use PublishSafe for chain subscriptions
-broker.PublishSafe(new EnemyDefeatedMessage { EnemyId = 42 });
-
-// Unsubscribe
-broker.Unsubscribe<EnemyDefeatedMessage>(this);    // This subscriber only
-broker.Unsubscribe<EnemyDefeatedMessage>();        // All subscribers
-broker.UnsubscribeAll(this);                        // All messages for this subscriber
+broker.Publish(new EnemyDefeatedMessage { EnemyId = 42 });
+broker.PublishSafe(new EnemyDefeatedMessage { EnemyId = 42 }); // safe during publish
+broker.Unsubscribe<EnemyDefeatedMessage>(this);
+broker.UnsubscribeAll(this);
 ```
-
----
 
 ### Tick Service
 
-Centralized control over Unity's update cycle.
-
-**Key Points:**
-- Creates a `DontDestroyOnLoad` GameObject to drive callbacks
-- Call `Dispose()` to tear down (tests, game reset)
-- Supports buffered ticking with overflow carry for reduced drift
-
 ```csharp
-public class GameController : ITickable, IDisposable
-{
-    private readonly ITickService _tickService;
-    
-    public GameController()
-    {
-        _tickService = new TickService();
-        _tickService.Add(this);              // Update callback
-        _tickService.AddFixed(this);         // FixedUpdate callback
-        _tickService.Add(this, 0.1f);        // Buffered: every 0.1 seconds
-    }
-    
-    public void OnTick(float deltaTime, double time)
-    {
-        // Called every frame (or at specified interval)
-    }
-    
-    public void Dispose()
-    {
-        _tickService.Remove(this);
-        _tickService.Dispose();
-    }
-}
+var tick = new TickService();
+tick.SubscribeOnUpdate(OnUpdate);
+tick.SubscribeOnUpdate(OnThrottled, deltaTime: 0.1f); // rate-limited
+tick.SubscribeOnFixedUpdate(OnFixed);
+tick.SubscribeOnLateUpdate(OnLate);
+tick.UnsubscribeAll(this);
+tick.Dispose(); // destroys host GameObject
 ```
-
----
 
 ### Coroutine Service
 
-Run Unity coroutines from pure C# classes without MonoBehaviour.
-
 ```csharp
-var coroutineService = new CoroutineService();
-
-// Start coroutine with completion callback
-coroutineService.StartCoroutine(MyRoutine(), () => Debug.Log("Done!"));
-
-// Delayed execution
-coroutineService.StartDelayCall(2f, () => Debug.Log("2 seconds later"));
-
-// Get coroutine reference
-var asyncCoroutine = coroutineService.StartCoroutine(LongTask());
-if (asyncCoroutine.IsRunning)
-{
-    coroutineService.StopCoroutine(asyncCoroutine);
-}
-
-IEnumerator MyRoutine()
-{
-    yield return new WaitForSeconds(1f);
-    Debug.Log("Coroutine step");
-}
+var cs = new CoroutineService();
+IAsyncCoroutine handle = cs.StartAsyncCoroutine(MyRoutine());
+handle.OnComplete(() => Debug.Log("Done!"));
+cs.StartDelayCall(() => Debug.Log("2 s later"), delay: 2f);
+cs.Dispose();
 ```
-
----
 
 ### Pool Service
 
-Efficient object pooling with lifecycle hooks.
-
 ```csharp
-var poolService = new PoolService();
-
-// Create pools
-var bulletPool = new GameObjectPool<Bullet>(bulletPrefab, initialSize: 50);
-poolService.AddPool(bulletPool);
-
-// Spawn/Despawn
-var bullet = poolService.Spawn<Bullet>();
-poolService.Despawn(bullet);
-
-// Spawn with data (implement IPoolEntitySpawn<T>)
-var bullet = poolService.Spawn<Bullet, BulletData>(new BulletData { Damage = 100 });
-
-// Direct pool access
-var pool = poolService.GetPool<Bullet>();
-pool.DespawnAll();
+var pool = new PoolService();
+pool.AddPool(new GameObjectPool<Bullet>(50, prefab));
+var bullet = pool.Spawn<Bullet>();
+pool.Despawn(bullet);
 ```
-
-**Lifecycle Hooks:**
-- `IPoolEntitySpawn` - Called on spawn
-- `IPoolEntitySpawn<TData>` - Called on spawn with data
-- `IPoolEntityDespawn` - Called on despawn
-
----
 
 ### Data Service
 
-Cross-platform persistent data storage with JSON serialization.
-
-**Key Points:**
-- Uses `PlayerPrefs` + `Newtonsoft.Json`
-- Keys are `typeof(T).Name` (watch for name collisions)
-- `LoadData<T>` requires parameterless constructor if no data exists
-
 ```csharp
-[Serializable]
-public class PlayerData
-{
-    public string Name;
-    public int Level;
-}
-
-var dataService = new DataService();
-
-// Save
-var player = new PlayerData { Name = "Hero", Level = 10 };
-dataService.AddOrReplaceData("player", player);
-await dataService.SaveData();
-
-// Load
-await dataService.LoadData();
-var loaded = dataService.GetData<PlayerData>("player");
+var ds = new DataService();
+PlayerData player = ds.LoadData<PlayerData>(); // loads from PlayerPrefs or creates fresh
+player.Level = 10;
+ds.SaveData<PlayerData>();
 ```
-
----
 
 ### RNG Service
 
-Deterministic random number generation with state management.
-
-**Key Points:**
-- State can be saved/restored for replay or rollback
-- Uses `floatP` from DataExtensions for deterministic float math
-- Peek methods return next value without advancing state
-
 ```csharp
-// Create with seed
-var rngData = RngService.CreateRngData(seed: 12345);
+RngData rngData = RngService.CreateRngData(seed: 42);
 var rng = new RngService(rngData);
-
-// Generate values
-int randomInt = rng.Next;                    // 0 to int.MaxValue
-floatP randomFloat = rng.Nextfloat;          // 0 to floatP.MaxValue
-int ranged = rng.Range(1, 100);              // 1-99 (exclusive max)
-floatP rangedFloat = rng.Range(0f, 1f);      // 0-1 (inclusive max)
-
-// Peek without advancing
-int peeked = rng.Peek;                       // Same value on repeated calls
-
-// Save/restore state for determinism
-int savedCount = rng.Counter;
-// ... generate some values ...
-rng.Restore(savedCount);                     // Restore to saved state
+int roll = rng.Range(1, 7);         // 1–6
+int saved = rng.Counter;
+rng.Restore(saved);                 // replay from saved point
 ```
-
----
-
-### Version Services
-
-Runtime access to build version and git metadata.
-
-**Key Points:**
-- Requires `version-data.txt` in Resources (generated by Editor tools)
-- Call `LoadVersionDataAsync()` early in app startup
-
-```csharp
-using GameLovers.Services;
-
-// Load version data (call once at startup)
-await VersionServices.LoadVersionDataAsync();
-
-// Access version info
-string externalVersion = VersionServices.VersionExternal;  // "1.0.0"
-string internalVersion = VersionServices.VersionInternal;  // "1.0.0-42.main.abc123"
-string branch = VersionServices.Branch;                     // "main"
-string commit = VersionServices.Commit;                     // "abc123"
-string buildNumber = VersionServices.BuildNumber;           // "42"
-
-// Check if app is outdated
-bool outdated = VersionServices.IsOutdatedVersion("1.1.0");
-```
-
----
 
 ### Time Service
 
-Unified time access with manipulation support.
+```csharp
+var time = new TimeService();
+DateTime utc  = time.DateTimeUtcNow;
+float unity   = time.UnityTimeNow;
+long unixMs   = time.UnixTimeNow;
+time.AddTime(3600f);                // fast-forward 1 hour (ITimeManipulator)
+```
+
+### Command Service
 
 ```csharp
-var timeService = new TimeService();
+public struct LevelUpCommand : IGameCommand<GameLogic>
+{
+    public void Execute(GameLogic gl, IMessageBrokerService mb)
+    {
+        gl.PlayerLevel++;
+        mb.Publish(new PlayerLevelledUpMessage { Level = gl.PlayerLevel });
+    }
+}
 
-// Get current times
-float unityTime = timeService.UnityTime;        // Time.time equivalent
-long unixTime = timeService.UnixTime;           // Unix timestamp
-DateTime dateTime = timeService.DateTime;       // DateTime.UtcNow
+ICommandService<GameLogic> cmd = new CommandService<GameLogic>(gameLogic, messageBroker);
+cmd.ExecuteCommand(new LevelUpCommand());
+```
 
-// Conversions
-long unix = timeService.DateTimeToUnix(DateTime.UtcNow);
-DateTime dt = timeService.UnixToDateTime(unix);
+### Version Services
+
+```csharp
+await VersionServices.LoadVersionDataAsync();
+string branch = VersionServices.Branch;
+string commit = VersionServices.Commit;
+string ext    = VersionServices.VersionExternal; // always safe, no await needed
+```
+
+### Asset Loading
+
+```csharp
+// Low-level
+var loader  = new AddressablesAssetLoader();
+var texture = await loader.LoadAssetAsync<Texture2D>("Textures/hero");
+
+// High-level: typed by id
+var resolver = new AssetResolverService();
+resolver.AddConfigs(spriteConfigs); // AssetConfigsScriptableObject<SpriteId, Sprite>
+var sprite = await resolver.RequestAsset<SpriteId, Sprite>(SpriteId.Hero, true, false);
+await resolver.LoadSceneAsync<SceneId>(SceneId.MainMenu, LoadSceneMode.Single, true);
 ```
 
 ---
 
-### Command Service
+## Editor Tools
 
-Decoupled command execution layer with message broker integration.
+The package ships a set of editor utilities that work in both **Edit** and **Play** mode.
 
-```csharp
-// Define commands
-public struct MovePlayerCommand : ICommand
-{
-    public int PlayerId;
-    public Vector3 Direction;
-}
+### Services Explorer
 
-var commandService = new CommandService(messageBroker);
+Open via `Tools > GameLovers > Services Explorer`.
 
-// Execute commands
-await commandService.ExecuteCommand(new MovePlayerCommand 
-{
-    PlayerId = 1,
-    Direction = Vector3.forward
-});
+A dockable UIToolkit window with one tab per service. During Play mode each tab live-refreshes at 250 ms intervals. In Edit mode a snapshot banner is shown and data is read on demand.
 
-// Fire and forget
-commandService.ExecuteCommand(new MovePlayerCommand { PlayerId = 2 });
-```
+| Tab | What it shows | Primary CTA / Actions |
+|---|---|---|
+| **Overview** | Per-service card grid with bound/ready status and direct jump-links | Open (jumps to tab), per-service primary CTA |
+| **Versioning** | `VersionExternal`, `VersionInternal`, `Branch`, `Commit`, `BuildNumber`; `version-data.txt` preview | **Reveal version-data.txt** |
+| **Installer** | All `MainInstaller` bindings (interface → concrete type) | **Clean All**; Clean, CleanDispose per binding |
+| **Message Broker** | All `IMessage` subscriptions with expandable subscriber lists | **Unsubscribe All**; Unsubscribe per type, Publish default(T) test |
+| **Tick** | Update / FixedUpdate / LateUpdate subscriber lists with throttle settings | **Unsubscribe All**; Clear per list |
+| **Coroutine** | Active `IAsyncCoroutine` handles (start time, running, completed) | **Stop All Coroutines**; Stop individual |
+| **Pool** | All registered pools: spawned count, sample entity | **Clear All Pools**; DespawnAll, Dispose, RemovePool, Ping sample |
+| **Data** | All loaded data types with indented JSON preview | **Save All Data**; Save, Load, Delete PlayerPrefs key |
+| **Time** | Live `DateTimeUtcNow`, `UnityTimeNow`, `UnityScaleTimeNow`, `UnixTimeNow` | **Reset Time**; `AddTime` slider, `SetInitialTime` picker |
+| **RNG** | Seed, Counter, peek-next N values | Restore(count) |
+| **Asset Resolver** | `AssetMap` tree: asset type → id type → (id → ref, loaded status) | **Unload All** (behind destructive toggle); Unload per asset |
+| **Assets Importer** | Discovered `IAssetConfigsImporter` list with per-importer path and status | **Import All**; Set Path, Import, Select per importer |
+| **Addressable Ids** | Generator settings (`ScriptFilename`, `Namespace`, `AddressableLabel`) with output status | **Generate Addressable Ids**; Open Addressables Groups |
+
+### Custom Inspectors
+
+- **`AssetConfigsScriptableObject`** — diagnostics panel (duplicate keys, empty GUIDs) + default fields + "Regenerate Addressable Ids" button.
+- **`AddressablesIdGeneratorSettings`** — settings are now configured in the Services Explorer **Addressable Ids** tab (`Tools > GameLovers > Addressable Ids > Open in Explorer`).
+- **`AssetReferenceScene`** (property drawer) — resolved scene path label + "Open in Addressables Groups" button.
+
+### Scaffolders
+
+`Assets > Create > GameLovers Services > …`
+
+| Entry | Generates |
+|---|---|
+| **Message** | `struct : IMessage` |
+| **Command** | `struct : IGameCommand<TGameLogic>` |
+| **Service** | `IMyService` + `MyService : IMyService, IDisposable` |
+| **Pool Entity** | class implementing `IPoolEntitySpawn` + `IPoolEntityDespawn` |
+
+File names and namespaces are set interactively in the Project window, identical to Unity's built-in "Create > C# Script" flow.
+
+---
+
+## Samples
+
+Importable samples live under [`Samples~/`](Samples~/) and are exposed via the Unity Package Manager:
+
+| Sample | Addressables required? | Focus |
+|---|---|---|
+| **Services Playground** | No | All foundation services (`MainInstaller`, `MessageBroker`, `Tick`, `Coroutine`, `Pool`, `Data`, `Time`, `Rng`, `Commands`, `Versioning`) wired into a single scene. Doubles as the manual end-to-end protocol for the **Services Explorer** window |
+| **Asset Resolver** | Yes (~2 minutes setup) | Typed asset loading via `AssetResolverService` + `AssetConfigsScriptableObject<TId, TAsset>`, plus the Addressable Ids generator and Assets Importer pipeline |
+
+Each sample ships as a complete, runnable Unity scene with a programmatically-built UI — no per-import wiring step (the Asset Resolver sample requires marking your sprites Addressable; see its README). For the index, AI-assistant common-mistakes section, and full list of sample-only types (which are NOT part of the package public API), see [`Samples~/README.md`](Samples~/README.md).
+
+To import a sample: **Window > Package Manager > GameLovers Services > Samples > Import**.
 
 ---
 
 ## Contributing
 
-We welcome contributions! Here's how you can help:
-
-### Reporting Issues
-
-- Use the [GitHub Issues](https://github.com/CoderGamester/com.gamelovers.services/issues) page
-- Include Unity version, package version, and reproduction steps
-- Attach relevant code samples, error logs, or screenshots
-
-### Development Setup
-
-1. Fork the repository on GitHub
-2. Clone your fork: `git clone https://github.com/yourusername/com.gamelovers.services.git`
-3. Create a feature branch: `git checkout -b feature/amazing-feature`
-4. Make your changes with tests
-5. Commit: `git commit -m 'Add amazing feature'`
-6. Push: `git push origin feature/amazing-feature`
-7. Create a Pull Request
-
-### Code Guidelines
-
-- Follow C# 9.0 syntax with explicit namespaces (no global usings)
-- Add XML documentation to all public APIs
-- Include unit tests for new features
-- Runtime code must not reference `UnityEditor`
-- Update CHANGELOG.md for notable changes
+Contributions are welcome! See [GitHub Issues](https://github.com/CoderGamester/com.gamelovers.services/issues) to report bugs or request features. For development setup, architecture details, namespace conventions, and coding standards, see [AGENTS.md](AGENTS.md).
 
 ---
+
+## Related docs
+
+| Document | Purpose |
+|---|---|
+| [docs/README.md](docs/README.md) | Full per-service API reference |
+| [AGENTS.md](AGENTS.md) | Contributor/agent guide (architecture, gotchas, workflows) |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
+| [MIGRATION.md](MIGRATION.md) | v1.x → v2.0.0 migration guide |
 
 ## Support
 
 - **Issues**: [Report bugs or request features](https://github.com/CoderGamester/com.gamelovers.services/issues)
 - **Discussions**: [Ask questions and share ideas](https://github.com/CoderGamester/com.gamelovers.services/discussions)
-- **Changelog**: See [CHANGELOG.md](CHANGELOG.md) for version history
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
-
----
-
-**Made with ❤️ for the Unity community**
-
-*If this package helps your project, please consider giving it a ⭐ on GitHub!*
+MIT — see [LICENSE.md](LICENSE.md).

@@ -1,0 +1,8 @@
+using GameLovers.Services;
+
+namespace $NAMESPACE$
+{
+	public struct $NAME$ : IMessage
+	{
+	}
+}

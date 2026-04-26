@@ -1,4 +1,5 @@
 using System;
+using GameLovers.GameData;
 using GameLovers.Services;
 using NUnit.Framework;
 
@@ -104,6 +105,64 @@ namespace GameLoversEditor.Services.Tests
 			Assert.AreEqual(0, data.Count);
 			Assert.IsNotNull(data.State);
 			Assert.AreEqual(56, data.State.Length);
+		}
+
+		[Test]
+		public void Nextfloat_ReturnsDeterministicSequence()
+		{
+			floatP f1 = _rngService.Nextfloat;
+			floatP f2 = _rngService.Nextfloat;
+
+			var data2 = RngService.CreateRngData(Seed);
+			var rng2 = new RngService(data2);
+			floatP f1b = rng2.Nextfloat;
+			floatP f2b = rng2.Nextfloat;
+
+			Assert.AreEqual(f1, f1b);
+			Assert.AreEqual(f2, f2b);
+		}
+
+		[Test]
+		public void Peekfloat_DoesNotAdvanceState()
+		{
+			floatP peeked1 = _rngService.Peekfloat;
+			floatP peeked2 = _rngService.Peekfloat;
+			floatP next = _rngService.Nextfloat;
+
+			Assert.AreEqual(peeked1, peeked2);
+			Assert.AreEqual(peeked1, next);
+			Assert.AreEqual(1, _rngService.Counter);
+		}
+
+		[Test]
+		public void RangeFloat_ReturnsValueInRange()
+		{
+			floatP min = (floatP)0f;
+			floatP max = (floatP)1f;
+
+			for (var i = 0; i < 20; i++)
+			{
+				floatP value = _rngService.Range(min, max);
+				Assert.GreaterOrEqual((float)value, (float)min);
+				Assert.LessOrEqual((float)value, (float)max);
+			}
+		}
+
+		[Test]
+		public void PeekRangeFloat_DoesNotAdvanceState()
+		{
+			floatP min = (floatP)0f;
+			floatP max = (floatP)1f;
+
+			floatP peeked1 = _rngService.PeekRange(min, max);
+			floatP peeked2 = _rngService.PeekRange(min, max);
+
+			Assert.AreEqual(peeked1, peeked2);
+			Assert.AreEqual(0, _rngService.Counter);
+
+			floatP actual = _rngService.Range(min, max);
+			Assert.AreEqual(peeked1, actual);
+			Assert.AreEqual(1, _rngService.Counter);
 		}
 	}
 }
