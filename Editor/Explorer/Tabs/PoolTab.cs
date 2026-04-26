@@ -42,6 +42,18 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		{
 			_list.Clear();
 
+			// Hide pool entries in edit mode (initial OR after a play session ended)
+			// regardless of any leftover PoolService kept alive by a static field.
+			// Together with OnExitingPlayMode() this guarantees the pool list does not
+			// retain a live snapshot after Stop, even if the consumer's bootstrap forgot
+			// to dispose the pool service / call MainInstaller.Clean() in OnDestroy.
+			if (!EditorApplication.isPlaying)
+			{
+				_countLabel.text = "Pools: 0";
+				_list.Add(MakeEmptyLabel());
+				return;
+			}
+
 			var poolService = TryResolve<IPoolService>() as PoolService;
 
 			if (poolService == null)
@@ -156,6 +168,18 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			var method = typeof(PoolService).GetMethod("RemovePool")?.MakeGenericMethod(entityType);
 			method?.Invoke(poolService, null);
 			Refresh();
+		}
+
+		// Forcibly clear the pool list synchronously when the user stops play mode.
+		// Belt-and-braces against bootstraps that fail to dispose IPoolService / call
+		// MainInstaller.Clean() in OnDestroy — without this the static MainInstaller
+		// would surface stale pools (and their spawned-readonly counts) until the next
+		// play session.
+		protected override void OnExitingPlayMode()
+		{
+			_countLabel.text = "Pools: 0";
+			_list.Clear();
+			_list.Add(MakeEmptyLabel());
 		}
 
 		private void OnClearAllPools()

@@ -4,26 +4,7 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-**New**:
-- Added importable **Samples** under `Samples~/` (importable via Unity Package Manager > GameLovers Services > Samples).
-  - **Services Playground** — single-scene, zero-setup walk-through that wires every foundation service via `MainInstaller` and exercises 10 of 13 Services Explorer tabs end-to-end. Ships a hand-authored `ServicesPlaygroundUI.prefab` (Canvas + 27 buttons across 10 sections + scrollable Log + scrollable LiveStatus) instanced into `ServicesPlayground.unity`. The driver wires `Button.onClick` listeners in `Awake`, ticks the bullet pool to despawn off-screen entries, and preserves the user's drag position on log auto-scroll. The pool's sample entity is generated as a tinted sphere primitive at runtime — there is no prefab asset to wire up.
-  - **Asset Resolver** — focused demo of `AssetResolverService` end-to-end (`AddConfigs` / `RequestAsset` / `UnloadAssets`) with `SpriteConfigs : AssetConfigsScriptableObject<SpriteId, Sprite>`. Drives the three Services Explorer tabs the Playground does not cover (Asset Resolver, Assets Importer, Addressable Ids). Ships a hand-authored `AssetResolverUI.prefab` instanced into `AssetResolver.unity`; per-sample README walks through the ~2-minute Addressables setup.
-  - All sample-only types live under `GameLovers.Services.Samples.<SampleName>` namespaces to make the public-API boundary explicit.
-- `Samples~/README.md` master index with an AI-assistant common-mistakes section (sourced from `AGENTS.md` §4) and a canonical list of sample-only types that are NOT part of the package public API.
-- Sample drivers swap `EventSystem` input modules at runtime via `#if ENABLE_INPUT_SYSTEM` so the samples work under any consumer Active Input Handling setting (`StandaloneInputModule` for legacy / `InputSystemUIInputModule` for the New Input System).
-- UI text in samples uses `TextMeshProUGUI` (TMP); consumers may need to import TMP Essentials once on first Play.
-
-**Fixed**:
-- `AssetConfigsScriptableObjectEditor.CreateInspectorGUI` no longer wraps the target in `new InspectorElement(serializedObject)`. With `editorForChildClasses: true`, that constructor re-resolved to the same custom editor and recursed infinitely (~5,300 levels deep) until the OS stack-guard region killed the editor with `EXC_BAD_ACCESS`. Inspector now iterates `serializedObject.GetIterator()` manually and adds `PropertyField` per visible property. Bug had been latent since no concrete subclass of `AssetConfigsScriptableObject<,>` existed in this repo until the new sample suite added `SpriteConfigs`.
-
-**Changed**:
-- `package.json` now declares a `samples[]` block exposing the new samples to Package Manager.
-- Package `README.md` gained a **Samples** section between **Editor Tools** and **Contributing** linking out to `Samples~/`.
-- `AGENTS.md`: §3 documents `Samples~/`; §4 adds a **Sample Zero-Setup Invariant** gotcha (programmatic-UI ban, deterministic `.cs.meta` GUIDs, sample-namespace boundary, prefab-regeneration recipe) and an `IAssetAdderService.AddConfigs<TId, TAsset>` default-interface-method gotcha (CS1061 when called through `AssetResolverService` concrete type — interface-only dispatch); §8 adds a samples update-policy bullet that triples the four-edit checklist (master README + per-sample README + `package.json` `samples[]` + AGENTS §3 row).
-
-## [2.0.0] - 2026-04-24
+## [2.0.0] - 2026-04-27
 
 **New**:
 - Added **Services Explorer** window (`Tools > GameLovers > Services Explorer`) with 13 live-refresh tabs: Overview, Installer, MessageBroker, Tick, Coroutine, Pool, Data, Time, RNG, AssetResolver, Versioning, Assets Importer, Addressable Ids — works in both Edit and Play mode
@@ -37,6 +18,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Added `AddressableConfig`, `AssetConfigsScriptableObject<TId,TAsset>`, `AssetLoaderUtils`, `AssetReferenceScene` to `Runtime/AssetsImporter/` (ns `GameLovers.Services.AssetsImporter`)
 - Added `AssetResolverService` (implements `IAssetResolverService` / `IAssetAdderService`) to `Runtime/` root (ns `GameLovers.Services`)
 - Added Editor/AssetsImporter/: `AssetsImporter`, `AssetsToolImporter`, `AssetConfigsImporter`, `AddressableIdsGenerator`, `AddressablesIdGeneratorSettings` (ns `GameLovers.Services.AssetsImporter.Editor`)
+- Added importable **Samples** under `Samples~/` (importable via Unity Package Manager > GameLovers Services > Samples).
+  - **Services Playground** — single-scene, zero-setup walk-through that wires every foundation service via `MainInstaller` and exercises 10 of 13 Services Explorer tabs end-to-end. 
+  - **Asset Resolver** — focused demo of `AssetResolverService` end-to-end (`AddConfigs` / `RequestAsset` / `UnloadAssets`) with `SpriteConfigs : AssetConfigsScriptableObject<SpriteId, Sprite>`. Drives the three Services Explorer tabs the Playground does not cover (Asset Resolver, Assets Importer, Addressable Ids). Ships with editor automation (`AssetResolverSampleSetup` + `AssetPostprocessor`) that auto-marks `Sprites/` PNGs as Addressable in a dedicated group `GameLoversServicesSamples_AssetResolver`, renames non-canonical filenames to `Hero/Coin/Enemy` (substring match, alphabetical fallback), and wires `SpriteConfigs.asset` rows on import. Manual escape hatches: `Tools > GameLovers > Samples > Asset Resolver > Refresh Addressables` menu and a sample-scoped **Refresh AssetResolver Sample Addressables** button on the `SpriteConfigs.asset` inspector. Existing user mappings to other sprites are respected.
 
 **Changed**:
 - Addressable Ids generator and Assets Importer settings moved from `Assets/*.asset` ScriptableObjects to `ProjectSettings/` ScriptableSingletons (mirrors `VersioningEditorSettings`).
@@ -56,6 +40,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 **Fixed**:
 - `AddressablesAssetLoader.UnloadAsset` no longer calls `GC.Collect()`, `GC.WaitForPendingFinalizers()`, or `Resources.UnloadUnusedAssets()`. The method now only decrements the Addressables reference count. The old implementation caused PlayMode Test Runner crashes on macOS and O(total-assets-in-memory) main-thread stalls per per-asset release. Callers that need memory reclamation should invoke `Resources.UnloadUnusedAssets()` themselves at appropriate moments (scene transitions, boot, memory-pressure events); Unity also runs an unused-assets sweep automatically on `LoadSceneMode.Single` scene loads.
 - Corrected `IAssetLoader.UnloadAsset` XML documentation: removed the incorrect "will also destroy GameObject instances" claim — `Addressables.Release(gameObject)` does not destroy the instance; callers must `Object.Destroy` it separately.
+- `IAsyncCoroutine.StopCoroutine(bool triggerOnComplete)` now honors its `triggerOnComplete` parameter and flips `IsCompleted` to `true` and `IsRunning` to `false` after stopping. The previous implementation always invoked `OnComplete` callbacks regardless of the flag and left state flags unchanged, so consumers could not distinguish a stopped coroutine from a running one and `triggerOnComplete: false` was silently ignored.
+- `GameObjectPool.Dispose()` and `GameObjectPool<T>.Dispose()` now skip pooled entries whose underlying `GameObject` has already been destroyed by an external owner (e.g. a parent GameObject was destroyed while pooled instances were still reparented under it via `DespawnToSampleParent`). 
+- `PerformanceTestSetup.InitializePerformanceTestMetadata()` now also primes the `PT_Settings` PlayerPref (with `MeasurementCount = -1`, the package's "no override" sentinel). The previous setup primed only `PT_Run`, which left `RunSettings.Instance` lazy-loading from an empty JSON in EditMode — the loader silently returned `null` and `MethodMeasurement.SettingsOverride()` then NRE'd at the first `Measure.Method(...).Run()` call before any warmup ran. All EditMode `[Test, Performance]` tests in the suite (`ObjectPoolPerformanceTest`, `MessageBrokerPerformanceTest`) were affected. Added `PerformanceTestSetupTest.MeasureMethod_AfterInitialize_DoesNotThrow` as a regression sentinel so a future change to `PerformanceTestSetup` that drops either PlayerPref will fail loudly with a clear class name. 
 
 **Breaking Changes** — see `MIGRATION.md` for details:
 - Pool types moved from `GameLovers.Services` to `GameLovers.Services.Pooling` (`IPoolService`, `IObjectPool`, `IObjectPool<T>`, `ObjectPool<T>`, `ObjectPoolBase<T>`, `GameObjectPool`, `GameObjectPool<T>`, `IPoolEntitySpawn`, `IPoolEntitySpawn<T>`, `IPoolEntityDespawn`, `IPoolEntityObject<T>`). `PoolService` concrete class remains in `GameLovers.Services`.

@@ -34,12 +34,6 @@ namespace GameLovers.Services.Samples.ServicesPlayground
 		/// <summary>Total despawn-hook invocations since play started. Useful for sample UI counters.</summary>
 		public static int TotalDespawns => _despawnCount;
 
-		public static void ResetCounters()
-		{
-			_spawnCount = 0;
-			_despawnCount = 0;
-		}
-
 		public void OnSpawn()
 		{
 			_spawnCount++;

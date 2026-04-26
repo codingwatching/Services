@@ -12,10 +12,12 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	{
 		private const string BannerClass = "tab-banner";
 		private const string RootClass = "tab-root";
+		private const string EditModeBannerText = "Not in Play mode — showing last snapshot";
+		private const string StoppedBannerText = "Play session ended — services unbound";
 
 		private Label _banner;
 		private IVisualElementScheduledItem _refreshTask;
-		private bool _wasPlaying;
+		private bool _hasSeenPlay;
 
 		/// <summary>Tab header text shown in the TabView strip.</summary>
 		public abstract string DisplayName { get; }
@@ -28,7 +30,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			AddToClassList(RootClass);
 			style.flexGrow = 1;
 
-			_banner = new Label("Not in Play mode — showing last snapshot");
+			_banner = new Label(EditModeBannerText);
 			_banner.AddToClassList(BannerClass);
 			Add(_banner);
 
@@ -49,11 +51,29 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		/// </summary>
 		protected abstract void Refresh();
 
+		/// <summary>
+		/// Called synchronously on <see cref="PlayModeStateChange.ExitingPlayMode"/>, BEFORE
+		/// scene teardown / <c>MonoBehaviour.OnDestroy</c> runs. Subclasses with populated
+		/// state widgets (lists, labels, dropdowns) should override this to forcibly clear
+		/// those widgets to an "unbound / session ended" state.
+		///
+		/// This is a belt-and-braces guarantee that the tab visually clears the moment play
+		/// stops, independent of whether the consumer's bootstrap properly disposed services
+		/// and called <see cref="MainInstaller.Clean"/> in <c>OnDestroy</c>. Tabs that already
+		/// render correctly off an unbound <c>MainInstaller</c> can leave this as a no-op.
+		/// </summary>
+		protected virtual void OnExitingPlayMode() { }
+
 		private void OnAttach(AttachToPanelEvent _)
 		{
 			EditorApplication.playModeStateChanged += OnPlayModeChanged;
-			_wasPlaying = EditorApplication.isPlayingOrWillChangePlaymode;
 
+			if (EditorApplication.isPlayingOrWillChangePlaymode)
+			{
+				_hasSeenPlay = true;
+			}
+
+			UpdateBannerVisibility();
 			Refresh();
 
 			if (EditorApplication.isPlaying)
@@ -73,18 +93,40 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			switch (state)
 			{
 				case PlayModeStateChange.EnteredPlayMode:
+					_hasSeenPlay = true;
 					UpdateBannerVisibility();
 					Refresh();
 					StartRefreshTimer();
 					break;
 				case PlayModeStateChange.ExitingPlayMode:
 					StopRefreshTimer();
+					// Forcibly clear the populated UI right now, BEFORE OnDestroy runs.
+					// This decouples the tab's empty-state from MainInstaller cleanup so
+					// the user sees a clean snapshot the moment they press Stop, even if
+					// their bootstrap forgot to call MainInstaller.Clean().
+					OnExitingPlayMode();
+					UpdateBannerVisibility();
+					// Then defer a follow-up refresh so it lands AFTER scene teardown
+					// (i.e. after MonoBehaviour.OnDestroy → MainInstaller.Clean()), which
+					// re-renders any state from the now-empty MainInstaller.
+					EditorApplication.delayCall += DelayedExitRefresh;
 					break;
 				case PlayModeStateChange.EnteredEditMode:
 					UpdateBannerVisibility();
 					Refresh();
 					break;
 			}
+		}
+
+		private void DelayedExitRefresh()
+		{
+			if (panel == null)
+			{
+				return;
+			}
+
+			UpdateBannerVisibility();
+			Refresh();
 		}
 
 		private void StartRefreshTimer()
@@ -107,9 +149,14 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 
 		private void UpdateBannerVisibility()
 		{
-			_banner.style.display = EditorApplication.isPlaying
-				? DisplayStyle.None
-				: DisplayStyle.Flex;
+			if (EditorApplication.isPlaying)
+			{
+				_banner.style.display = DisplayStyle.None;
+				return;
+			}
+
+			_banner.text = _hasSeenPlay ? StoppedBannerText : EditModeBannerText;
+			_banner.style.display = DisplayStyle.Flex;
 		}
 
 		// ---- Helpers for sub-classes ----
@@ -183,6 +230,18 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	{
 		var btn = new Button(onClick) { text = text };
 		btn.AddToClassList("action-primary");
+		return btn;
+	}
+
+	/// <summary>
+	/// Creates a destructive primary action button styled with the <c>action-primary-danger</c>
+	/// USS class. Use for primary call-to-actions that remove or invalidate state
+	/// (e.g. <c>Unsubscribe All</c>, <c>Stop All Coroutines</c>, <c>Clean All</c> bindings).
+	/// </summary>
+	protected static Button MakePrimaryDangerButton(string text, System.Action onClick)
+	{
+		var btn = new Button(onClick) { text = text };
+		btn.AddToClassList("action-primary-danger");
 		return btn;
 	}
 

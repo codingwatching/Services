@@ -27,13 +27,24 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			Add(_scroll);
 
 		_actionBar = MakeActionBar();
-		_actionBar.Add(MakePrimaryButton("Clean All", OnCleanAll));
+		_actionBar.Add(MakePrimaryDangerButton("Clean All", OnCleanAll));
 		Add(_actionBar);
 		}
 
 		protected override void Refresh()
 		{
 			_list.Clear();
+
+			// In edit mode (initial OR after a play session ended) the populated bindings
+			// list is hidden, regardless of whatever static state MainInstaller still holds.
+			// Together with OnExitingPlayMode() this guarantees that the tab does not retain
+			// a live snapshot after Stop, even if the consumer's bootstrap forgot to call
+			// MainInstaller.Clean() in OnDestroy. The banner conveys play-mode context.
+			if (!UnityEditor.EditorApplication.isPlaying)
+			{
+				_list.Add(MakeEmptyLabel());
+				return;
+			}
 
 			var installer = MainInstaller.InstallerInstance;
 
@@ -68,6 +79,16 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 
 				_list.Add(row);
 			}
+		}
+
+		// Forcibly clear the bindings list synchronously when the user stops play mode.
+		// Belt-and-braces against bootstraps that fail to call MainInstaller.Clean() in
+		// OnDestroy — without this the static MainInstaller would surface stale bindings
+		// in the tab until the next play session.
+		protected override void OnExitingPlayMode()
+		{
+			_list.Clear();
+			_list.Add(MakeEmptyLabel());
 		}
 
 		private void OnClean(Type interfaceType)

@@ -60,7 +60,6 @@ namespace GameLovers.Services.Samples.ServicesPlayground
 		[Header("Pool buttons")]
 		[SerializeField] private Button _spawnBurstButton;
 		[SerializeField] private Button _despawnAllButton;
-		[SerializeField] private Button _resetCountersButton;
 
 		[Header("Data buttons")]
 		[SerializeField] private Button _loadDataButton;
@@ -130,7 +129,6 @@ namespace GameLovers.Services.Samples.ServicesPlayground
 
 			WireButton(_spawnBurstButton,          Pool_SpawnBurst);
 			WireButton(_despawnAllButton,          Pool_DespawnAll);
-			WireButton(_resetCountersButton,       Pool_ResetCounters);
 
 			WireButton(_loadDataButton,            Data_Load);
 			WireButton(_modifyAndSaveButton,       Data_ModifyAndSave);
@@ -220,7 +218,7 @@ namespace GameLovers.Services.Samples.ServicesPlayground
 					$"Unity: {time.UnityTimeNow:F1}s  Scaled: {time.UnityScaleTimeNow:F1}s\n" +
 					$"Messages received: {_testMessagesReceived}\n" +
 					$"Ticks U/F/L: {_updateTicks} / {_fixedTicks} / {_lateTicks}\n" +
-					$"Pool spawns/despawns: {Bullet.TotalSpawns} / {Bullet.TotalDespawns}\n" +
+					$"Bullet OnSpawn / OnDespawn lifetime calls: {Bullet.TotalSpawns} / {Bullet.TotalDespawns}\n" +
 					$"RNG counter: {_bootstrap.Rng.Counter}\n" +
 					$"Player level (GameLogic): {_bootstrap.GameLogic.PlayerLevel}";
 			}
@@ -371,12 +369,16 @@ namespace GameLovers.Services.Samples.ServicesPlayground
 
 		public void Coroutine_StartAsync()
 		{
-			var handle = _bootstrap.Coroutine.StartAsyncCoroutine(WaitFrames(60));
+			// 3-second wait so the handle is visibly present in Services Explorer >
+			// Coroutine tab across multiple refresh cycles (refresh interval is 250ms).
+			// A short WaitFrames(60) used to complete inside a single refresh cycle on
+			// editor framerates above ~60 fps and looked like the button was a no-op.
+			var handle = _bootstrap.Coroutine.StartAsyncCoroutine(WaitSeconds(3f));
 			handle.OnComplete(() =>
 			{
-				Append("Coroutine: 60-frame async coroutine completed.");
+				Append("Coroutine: 3s async coroutine completed.");
 			});
-			Append("Coroutine: StartAsyncCoroutine(WaitFrames 60) started.");
+			Append("Coroutine: StartAsyncCoroutine(WaitSeconds 3) started — visible in Services Explorer > Coroutine tab.");
 		}
 
 		public void Coroutine_StopAll()
@@ -391,6 +393,11 @@ namespace GameLovers.Services.Samples.ServicesPlayground
 			{
 				yield return null;
 			}
+		}
+
+		private static IEnumerator WaitSeconds(float seconds)
+		{
+			yield return new WaitForSeconds(seconds);
 		}
 
 		// ---------------- Pool ----------------
@@ -423,12 +430,6 @@ namespace GameLovers.Services.Samples.ServicesPlayground
 		{
 			_bootstrap.Pool.DespawnAll<Bullet>();
 			Append("Pool: DespawnAll<Bullet>().");
-		}
-
-		public void Pool_ResetCounters()
-		{
-			Bullet.ResetCounters();
-			Append("Pool: Bullet spawn/despawn counters reset.");
 		}
 
 		// ---------------- Data ----------------

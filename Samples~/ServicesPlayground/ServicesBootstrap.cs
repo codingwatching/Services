@@ -92,10 +92,15 @@ namespace GameLovers.Services.Samples.ServicesPlayground
 		}
 
 		/// <summary>
-		/// Tints the runtime-generated bullet prefab a bright orange so it pops against the
-		/// dark camera background. Sets both <c>_BaseColor</c> (URP / HDRP Lit shader) and
-		/// <c>_Color</c> (Built-in Standard shader) so the color is visible regardless of
-		/// the consumer's render pipeline.
+		/// Tints the runtime-generated bullet prefab a bright orange and turns on emission
+		/// so the sphere remains visible without any scene lighting setup. The Lit shader
+		/// (URP / HDRP / Built-in Standard) renders close to black under a fresh empty
+		/// scene, which made the pool demo look broken even though the spawns were working.
+		///
+		/// We set:
+		/// - <c>_BaseColor</c> (URP / HDRP Lit) and <c>_Color</c> (Built-in Standard) for the diffuse tint.
+		/// - <c>_EmissionColor</c> + <c>_EMISSION</c> keyword so the sphere self-illuminates regardless of lights.
+		/// - <c>globalIlluminationFlags = None</c> so the editor doesn't try to bake the runtime color.
 		/// </summary>
 		private static void ApplyBulletMaterialColor(GameObject go)
 		{
@@ -119,6 +124,19 @@ namespace GameLovers.Services.Samples.ServicesPlayground
 			if (mat.HasProperty("_Color"))
 			{
 				mat.SetColor("_Color", color);
+			}
+
+			// Emissive intensity 1.6× the base color reads cleanly against an unlit / dark
+			// editor scene without blowing out HDR. Both URP Lit and Built-in Standard
+			// expose _EmissionColor; the _EMISSION keyword must be enabled for Built-in.
+			var emission = color * 1.6f;
+			emission.a = 1f;
+
+			if (mat.HasProperty("_EmissionColor"))
+			{
+				mat.SetColor("_EmissionColor", emission);
+				mat.EnableKeyword("_EMISSION");
+				mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
 			}
 		}
 

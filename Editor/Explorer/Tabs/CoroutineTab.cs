@@ -30,7 +30,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			Add(_scroll);
 
 		var bar = MakeActionBar();
-		bar.Add(MakePrimaryButton("Stop All Coroutines", OnStopAll));
+		bar.Add(MakePrimaryDangerButton("Stop All Coroutines", OnStopAll));
 		Add(bar);
 		}
 
@@ -39,6 +39,16 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			_list.Clear();
 
 #if UNITY_EDITOR
+			// Hide active-coroutine entries in edit mode regardless of any leftover
+			// CoroutineService instance kept alive by a static field. See ServiceTab
+			// OnExitingPlayMode() docs for the broader rationale.
+			if (UnityEditor.EditorApplication.isPlaying == false)
+			{
+				_totalLabel.text = "Active: 0";
+				_list.Add(MakeEmptyLabel());
+				return;
+			}
+
 			var cs = TryResolve<ICoroutineService>() as CoroutineService;
 
 			if (cs == null)
@@ -72,6 +82,16 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 #else
 			_totalLabel.text = "Editor tracking not available in non-editor builds";
 #endif
+		}
+
+		// Forcibly clear the active-coroutine list synchronously when the user stops
+		// play mode. Belt-and-braces against bootstraps that fail to dispose the
+		// coroutine service / call MainInstaller.Clean() in OnDestroy.
+		protected override void OnExitingPlayMode()
+		{
+			_totalLabel.text = "Active: 0";
+			_list.Clear();
+			_list.Add(MakeEmptyLabel());
 		}
 
 		private void OnStopAll()

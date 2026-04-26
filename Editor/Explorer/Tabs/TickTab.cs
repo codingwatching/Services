@@ -35,7 +35,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			Add(scroll);
 
 		_actionBar = MakeActionBar();
-		_actionBar.Add(MakePrimaryButton("Unsubscribe All", OnClearAll));
+		_actionBar.Add(MakePrimaryDangerButton("Unsubscribe All", OnClearAll));
 		_actionBar.Add(new Button(OnClearUpdate) { text = "Clear Update" });
 		_actionBar.Add(new Button(OnClearFixed) { text = "Clear FixedUpdate" });
 		_actionBar.Add(new Button(OnClearLate) { text = "Clear LateUpdate" });
@@ -44,6 +44,15 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 
 		protected override void Refresh()
 		{
+			// Hide tick subscriber lists in edit mode regardless of any leftover
+			// TickService instance kept alive by a static field. See ServiceTab
+			// OnExitingPlayMode() docs for the broader rationale.
+			if (!UnityEditor.EditorApplication.isPlaying)
+			{
+				ShowEmptyState();
+				return;
+			}
+
 			var tick = TryResolve<ITickService>() as TickService;
 
 			if (tick == null)
@@ -60,6 +69,24 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			PopulateFoldout(_updateFoldout, "Update", tick.OnUpdateList);
 			PopulateFoldout(_fixedFoldout, "FixedUpdate", tick.OnFixedUpdateList);
 			PopulateFoldout(_lateFoldout, "LateUpdate", tick.OnLateUpdateList);
+		}
+
+		// Forcibly clear all three tick subscriber lists synchronously when the user
+		// stops play mode. Belt-and-braces against bootstraps that fail to dispose
+		// ITickService / call MainInstaller.Clean() in OnDestroy.
+		protected override void OnExitingPlayMode()
+		{
+			ShowEmptyState();
+		}
+
+		private void ShowEmptyState()
+		{
+			_updateFoldout.text = "Update (0)";
+			_fixedFoldout.text = "FixedUpdate (0)";
+			_lateFoldout.text = "LateUpdate (0)";
+			ClearFoldout(_updateFoldout);
+			ClearFoldout(_fixedFoldout);
+			ClearFoldout(_lateFoldout);
 		}
 
 		private static void PopulateFoldout(Foldout foldout, string label,

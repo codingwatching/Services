@@ -43,6 +43,18 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		{
 			_list.Clear();
 
+			// Hide entries in edit mode (initial OR after a play session ended) regardless
+			// of any leftover DataService kept alive by a static field. Together with
+			// OnExitingPlayMode() this guarantees the data list does not retain a live
+			// snapshot after Stop, even if the consumer's bootstrap forgot to call
+			// MainInstaller.Clean() in OnDestroy.
+			if (!EditorApplication.isPlaying)
+			{
+				_countLabel.text = "Entries: 0";
+				_list.Add(MakeEmptyLabel());
+				return;
+			}
+
 			var dataService = TryResolve<IDataService>() as DataService;
 
 			if (dataService == null)
@@ -94,6 +106,17 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 
 				_list.Add(container);
 			}
+		}
+
+		// Forcibly clear the data entries widget synchronously when the user stops play
+		// mode. Belt-and-braces against bootstraps that fail to call MainInstaller.Clean()
+		// in OnDestroy — the DataService entries dictionary lives on the service instance
+		// and would otherwise surface as a stale snapshot in edit mode.
+		protected override void OnExitingPlayMode()
+		{
+			_countLabel.text = "Entries: 0";
+			_list.Clear();
+			_list.Add(MakeEmptyLabel());
 		}
 
 		private void OnSaveAll()

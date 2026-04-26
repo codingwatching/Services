@@ -195,5 +195,114 @@ namespace GameLoversEditor.Services.Tests
 
 			Assert.AreEqual(99, received);
 		}
+
+		// Stopping via IAsyncCoroutine.StopCoroutine MUST flip IsCompleted/IsRunning so
+		// editor introspection (Services Explorer Coroutine tab) can drop stopped entries.
+		[UnityTest]
+		public IEnumerator AsyncCoroutineStop_FlipsCompletedAndRunning()
+		{
+			IAsyncCoroutine asyncCoroutine = _coroutineService.StartAsyncCoroutine(TestCoroutine(5));
+
+			Assert.IsTrue(asyncCoroutine.IsRunning);
+			Assert.IsFalse(asyncCoroutine.IsCompleted);
+
+			asyncCoroutine.StopCoroutine();
+
+			Assert.IsFalse(asyncCoroutine.IsRunning);
+			Assert.IsTrue(asyncCoroutine.IsCompleted);
+
+			yield return null;
+		}
+
+		// triggerOnComplete=true MUST invoke the user OnComplete callback.
+		[UnityTest]
+		public IEnumerator AsyncCoroutineStop_TriggerOnCompleteTrue_InvokesUserCallback()
+		{
+			int testCompleted = 0;
+			IAsyncCoroutine asyncCoroutine = _coroutineService.StartAsyncCoroutine(TestCoroutine(5));
+			asyncCoroutine.OnComplete(() => testCompleted = 42);
+
+			asyncCoroutine.StopCoroutine(triggerOnComplete: true);
+
+			Assert.AreEqual(42, testCompleted);
+
+			yield return null;
+		}
+
+		// triggerOnComplete=false MUST suppress the user OnComplete callback.
+		[UnityTest]
+		public IEnumerator AsyncCoroutineStop_TriggerOnCompleteFalse_SuppressesUserCallback()
+		{
+			int testCompleted = 0;
+			IAsyncCoroutine asyncCoroutine = _coroutineService.StartAsyncCoroutine(TestCoroutine(5));
+			asyncCoroutine.OnComplete(() => testCompleted = 42);
+
+			asyncCoroutine.StopCoroutine(triggerOnComplete: false);
+
+			Assert.AreEqual(0, testCompleted);
+
+			yield return null;
+		}
+
+		// User OnComplete callback registered AFTER editor tracking attaches must still fire.
+		// Regression guard for v2.0.0 bug where editor tracking lambda assigned via
+		// OnComplete(...) overwrote (or was overwritten by) user callbacks.
+		[UnityTest]
+		public IEnumerator AsyncCoroutineOnComplete_RegisteredAfterCreation_FiresOnNaturalCompletion()
+		{
+			bool userCallbackFired = false;
+			IAsyncCoroutine asyncCoroutine = _coroutineService.StartAsyncCoroutine(TestCoroutine(5));
+			asyncCoroutine.OnComplete(() => userCallbackFired = true);
+
+			yield return asyncCoroutine.Coroutine;
+
+			Assert.IsTrue(userCallbackFired);
+			Assert.IsTrue(asyncCoroutine.IsCompleted);
+		}
+
+		// StopCoroutine on an already-completed handle must be a no-op — the IsCompleted
+		// guard prevents the user OnComplete callback from re-firing and prevents IsRunning
+		// state from being clobbered. Pairs with AsyncCoroutineStop_CalledTwice_NoOps below.
+		[UnityTest]
+		public IEnumerator AsyncCoroutineStop_AfterNaturalCompletion_NoOps()
+		{
+			int callbackInvocations = 0;
+			IAsyncCoroutine asyncCoroutine = _coroutineService.StartAsyncCoroutine(TestCoroutine(5));
+			asyncCoroutine.OnComplete(() => callbackInvocations++);
+
+			yield return asyncCoroutine.Coroutine;
+
+			Assert.IsTrue(asyncCoroutine.IsCompleted);
+			Assert.AreEqual(1, callbackInvocations);
+
+			asyncCoroutine.StopCoroutine(triggerOnComplete: true);
+
+			Assert.IsTrue(asyncCoroutine.IsCompleted);
+			Assert.IsFalse(asyncCoroutine.IsRunning);
+			Assert.AreEqual(1, callbackInvocations);
+		}
+
+		// Two consecutive StopCoroutine calls on the same handle must collapse — the second
+		// is a no-op so the user OnComplete callback fires exactly once total. Without the
+		// IsCompleted guard, double-stop would fire OnComplete twice and confuse listeners.
+		[UnityTest]
+		public IEnumerator AsyncCoroutineStop_CalledTwice_NoOps()
+		{
+			int callbackInvocations = 0;
+			IAsyncCoroutine asyncCoroutine = _coroutineService.StartAsyncCoroutine(TestCoroutine(5));
+			asyncCoroutine.OnComplete(() => callbackInvocations++);
+
+			asyncCoroutine.StopCoroutine(triggerOnComplete: true);
+			Assert.IsTrue(asyncCoroutine.IsCompleted);
+			Assert.AreEqual(1, callbackInvocations);
+
+			asyncCoroutine.StopCoroutine(triggerOnComplete: true);
+
+			Assert.IsTrue(asyncCoroutine.IsCompleted);
+			Assert.IsFalse(asyncCoroutine.IsRunning);
+			Assert.AreEqual(1, callbackInvocations);
+
+			yield return null;
+		}
 	}
 }

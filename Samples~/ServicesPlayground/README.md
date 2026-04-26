@@ -22,8 +22,8 @@ The scene contains a single `Bootstrap` GameObject with two MonoBehaviours: `Ser
 | `MainInstaller` / `Installer` | Dump bindings · Clean all | **Installer** |
 | `IMessageBrokerService` | Subscribe · Publish · PublishSafe · Unsubscribe | **Message Broker** |
 | `ITickService` | Sub Update / FixedUpdate / LateUpdate · Unsubscribe All | **Tick** |
-| `ICoroutineService` | Delay 2s · Async 60 frames · Stop All | **Coroutine** |
-| `IPoolService` + `GameObjectPool<Bullet>` | Spawn burst · Despawn all · Reset counters | **Pool** |
+| `ICoroutineService` | Delay 2s · Async 3s · Stop All | **Coroutine** |
+| `IPoolService` + `GameObjectPool<Bullet>` | Spawn burst · Despawn all | **Pool** |
 | `IDataService` | Load PlayerData · Modify + Save · Save All · Delete prefs | **Data** |
 | `ITimeService` / `ITimeManipulator` | Add time · Reset | **Time** |
 | `IRngService` | Draw · Peek · Restore to 0 | **RNG** |
