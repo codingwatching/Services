@@ -21,7 +21,7 @@
     },
     {
       "displayName": "Asset Resolver",
-      "description": "Demonstrates AssetResolverService end-to-end: typed asset loading by id-enum via AssetConfigsScriptableObject, plus the Addressable Ids generator and Assets Importer pipeline. Requires Addressables setup (~2 minutes) — see the per-sample README for the four steps.",
+      "description": "Demonstrates AssetResolverService end-to-end: typed asset loading by id-enum via AssetConfigsScriptableObject, plus the Addressable Ids generator and Assets Importer pipeline. Ships placeholder sprites and editor automation that auto-marks them Addressable in a dedicated group on import — open the scene and press Play.",
       "path": "Samples~/AssetResolver"
     }
   ]

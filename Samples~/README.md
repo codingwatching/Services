@@ -23,7 +23,7 @@ The samples ship as complete, runnable Unity scenes — no per-import wiring ste
 | # | Sample | Addressables required? | What it teaches |
 |---|---|---|---|
 | 1 | [Services Playground](#1-services-playground) | No | All foundation services (`MainInstaller`, `MessageBroker`, `Tick`, `Coroutine`, `Pool`, `Data`, `Time`, `Rng`, `Commands`, `Versioning`) wired into a single uGUI scene |
-| 2 | [Asset Resolver](#2-asset-resolver) | Yes (one-time setup) | Typed asset loading (`AssetResolverService`), the Addressable Ids generator, and the Assets Importer pipeline |
+| 2 | [Asset Resolver](#2-asset-resolver) | Yes (auto-setup on import) | Typed asset loading (`AssetResolverService`), the Addressable Ids generator, and the Assets Importer pipeline |
 
 ---
 
@@ -65,14 +65,20 @@ A focused demo of `AssetResolverService` end-to-end: register a `AssetConfigsScr
 ```
 AssetResolver/
   AssetResolver.unity            Single scene — Camera + Bootstrap GameObject
+  AssetResolverUI.prefab         Hand-authored uGUI Canvas — buttons + Image + status TMP_Text
   README.md                      Walkthrough + Addressables setup steps
-  AssetResolverExample.cs        Driver — builds Canvas + buttons + Image, registers configs, loads on click
+  AssetResolverExample.cs        Driver — wires button listeners, registers configs, loads on click
   SpriteId.cs                    Sample-only enum (Hero/Coin/Enemy)
   SpriteConfigs.cs               Sample-only AssetConfigsScriptableObject<SpriteId, Sprite>
-  SpriteConfigs.asset            Empty SO instance — user fills via inspector after marking sprites Addressable
+  SpriteConfigs.asset            Empty SO instance — auto-filled by AssetResolverSampleSetup on import
+  Sprites/Hero.png               Placeholder sprite — replace with your own anytime
+  Sprites/Coin.png               Placeholder sprite — replace with your own anytime
+  Sprites/Enemy.png              Placeholder sprite — replace with your own anytime
+  Editor/AssetResolverSampleSetup.cs       AssetPostprocessor + menu + helper for auto-Addressables wiring
+  Editor/GameLovers.Services.Samples.AssetResolver.Editor.asmdef   Sample editor assembly
 ```
 
-**~2 minutes of one-time setup required** (Addressables Groups + drag three Sprites into `SpriteConfigs.asset`). The per-sample README walks through every step.
+**Zero per-import setup**: when the sample is imported, `AssetResolverSampleSetup.OnPostprocessAllAssets` marks every PNG under `Sprites/` as Addressable in a dedicated group `GameLoversServicesSamples_AssetResolver`, renames non-canonical filenames to `Hero/Coin/Enemy`, and wires `SpriteConfigs.asset`. The same automation re-runs whenever you drop new PNGs into `Sprites/`. Manual escape hatches: `Tools > GameLovers > Samples > Asset Resolver > Refresh Addressables` and a sample-scoped **Refresh AssetResolver Sample Addressables** button on the `SpriteConfigs.asset` inspector. Existing user mappings to other sprites are respected. The per-sample README walks through swapping in your own sprites and the manual fallback flow.
 
 ---
 

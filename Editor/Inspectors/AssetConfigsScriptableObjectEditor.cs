@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using GameLovers.Services.AssetsImporter;
 using GameLovers.Services.AddressableIds.Editor;
@@ -56,6 +57,27 @@ namespace GameLovers.Services.Inspectors.Editor
 			var regenBtn = new Button(OnRegenerateIds) { text = "Regenerate Addressable Ids" };
 			regenBtn.style.height = 26;
 			root.Add(regenBtn);
+
+			// ---- Sample-scoped: AssetResolver Sample auto-setup shortcut ----
+			// Shown only when the inspected asset is the AssetResolver sample's SpriteConfigs.asset.
+			// Decoupled from the sample's editor assembly via menu-item invocation; if the sample
+			// or its editor scripts are absent, the menu will be missing and this button hides.
+			if (IsAssetResolverSampleConfigs())
+			{
+				var sampleSpacer = new VisualElement();
+				sampleSpacer.style.height = 6;
+				root.Add(sampleSpacer);
+
+				var sampleBtn = new Button(OnRefreshAssetResolverSample)
+				{
+					text = "Refresh AssetResolver Sample Addressables"
+				};
+				sampleBtn.style.height = 26;
+				sampleBtn.tooltip =
+					"Marks every PNG in this sample's Sprites/ folder as Addressable in a dedicated " +
+					"group, renames non-canonical files to Hero/Coin/Enemy, and wires SpriteConfigs.";
+				root.Add(sampleBtn);
+			}
 
 			RunDiagnostics();
 
@@ -163,9 +185,33 @@ namespace GameLovers.Services.Inspectors.Editor
 			}
 		}
 
-	private static void OnRegenerateIds()
-	{
-		AddressableIdsGeneratorUtils.Generate(AddressableIdsEditorSettings.instance);
-	}
+		private static void OnRegenerateIds()
+		{
+			AddressableIdsGeneratorUtils.Generate(AddressableIdsEditorSettings.instance);
+		}
+
+		private bool IsAssetResolverSampleConfigs()
+		{
+			var path = AssetDatabase.GetAssetPath(target);
+			if (string.IsNullOrEmpty(path))
+			{
+				return false;
+			}
+
+			// Match the sample's canonical layout regardless of the imported version folder.
+			return path.Replace('\\', '/').EndsWith("/Asset Resolver/SpriteConfigs.asset",
+				StringComparison.Ordinal);
+		}
+
+		private static void OnRefreshAssetResolverSample()
+		{
+			const string menuPath = "Tools/GameLovers/Samples/Asset Resolver/Refresh Addressables";
+			if (!EditorApplication.ExecuteMenuItem(menuPath))
+			{
+				Debug.LogWarning(
+					$"[AssetResolverSample] Menu '{menuPath}' is unavailable. Re-import the sample " +
+					"via Package Manager so its editor scripts compile.");
+			}
+		}
 	}
 }
