@@ -52,6 +52,17 @@ Do not "work around" the proxy failure by restructuring the type hierarchy — `
 - Apply `[PrebuildSetup(typeof(PerformanceTestSetup))]` at the class level and call `PerformanceTestSetup.InitializePerformanceTestMetadata()` in `[OneTimeSetUp]`.
 - Use `Measure.Method(() => { ... }).WarmupCount(n).MeasurementCount(n).Run()`.
 
+### `PerformanceTestSetup` PlayerPref contract (do NOT regress)
+`InitializePerformanceTestMetadata()` MUST prime **two** PlayerPref keys before any `Measure.Method(...).Run()` call — dropping either one ships a latent NRE that masks the actual perf-test logic:
+- `PT_Run` — full Run metadata (editor info, dependencies, build settings); consumed by `Metadata.SetRuntimeSettings()` when results are emitted.
+- `PT_Settings` — RunSettings JSON (use `"{\"MeasurementCount\":-1}"`); consumed by `MethodMeasurement.SettingsOverride()` *before* the first warmup.
+
+Why both keys: `RunSettings.Instance` is a lazy-loaded singleton (`ResourcesLoader.Load<RunSettings>("PerformanceTestRunSettings", "PT_Settings")`). In Editor it falls back to `PlayerPrefs.GetString("PT_Settings")`; if the value is empty, `JsonUtility.FromJson` throws, the loader silently swallows the exception and returns `null`, and `SettingsOverride()` then NREs at `RunSettings.Instance.MeasurementCount`. The failure surfaces at `MethodMeasurement.cs:288` with no hint that the setup is incomplete.
+
+`MeasurementCount = -1` is the package's "no override" sentinel — `SettingsOverride()` early-returns when `count < 0`, so each fixture's per-test `WarmupCount(...).MeasurementCount(...)` is preserved.
+
+`PerformanceTestSetupTest.MeasureMethod_AfterInitialize_DoesNotThrow` is the regression sentinel for this contract: a no-op `Measure.Method(() => {}).WarmupCount(1).MeasurementCount(1).Run()` wrapped in `Assert.DoesNotThrow`. If a future change to `PerformanceTestSetup` drops either PlayerPref, this test fails first with a class name that points directly at the harness — keep it green.
+
 ## 8. Integration Tests
 - Use `[Order(n)]` when tests must run in sequence (e.g., `VersionServicesIntegrationTest` resets static state, then loads, then reads).
 - Reset shared static state in `[SetUp]` (reflection into private fields is acceptable for static classes like `VersionServices`).
