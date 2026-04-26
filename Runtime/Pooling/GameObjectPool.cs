@@ -41,6 +41,12 @@ namespace GameLovers.Services.Pooling
 
 			foreach (var obj in content)
 			{
+				// Skip entries already destroyed by an external owner (Unity fake-null).
+				if (obj == null)
+				{
+					continue;
+				}
+
 				Object.Destroy(obj);
 			}
 		}
@@ -136,6 +142,13 @@ namespace GameLovers.Services.Pooling
 
 			foreach (var obj in content)
 			{
+				// Skip entries already destroyed by an external owner; .gameObject
+				// on a destroyed Behaviour throws MissingReferenceException.
+				if (obj == null)
+				{
+					continue;
+				}
+
 				Object.Destroy(obj.gameObject);
 			}
 		}

@@ -125,5 +125,22 @@ namespace GameLoversEditor.Services.Tests
 
 			yield return null;
 		}
+
+		[UnityTest]
+		public IEnumerator Dispose_AfterDespawnedInstanceDestroyedExternally_DoesNotThrow()
+		{
+			var externalParent = new GameObject("ExternalParent");
+			_sample.transform.SetParent(externalParent.transform);
+
+			var instance = _pool.Spawn();
+			_pool.Despawn(instance);
+
+			// PostDespawnEntity reparented `instance` under `externalParent`, so destroying
+			// it cascades into both children while the pool still tracks `instance`.
+			Object.Destroy(externalParent);
+			yield return null;
+
+			Assert.DoesNotThrow(() => _pool.Dispose());
+		}
 	}
 }

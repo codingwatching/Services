@@ -210,8 +210,31 @@ namespace GameLoversEditor.Services.Tests
 
 			Assert.AreSame(parent.transform, instance.transform.parent);
 
+			// Detach before destroying parent so the cascade does not also destroy the
+			// pooled instance (which the pool still tracks). Dispose-resilience to that
+			// pattern is covered by Dispose_AfterDespawnedInstanceDestroyedExternally_DoesNotThrow.
+			_sampleGo.transform.SetParent(null);
+			instance.transform.SetParent(null);
+
 			Object.Destroy(parent);
 			yield return null;
+		}
+
+		[UnityTest]
+		public IEnumerator Dispose_AfterDespawnedInstanceDestroyedExternally_DoesNotThrow()
+		{
+			var externalParent = new GameObject("ExternalParent");
+			_sampleGo.transform.SetParent(externalParent.transform);
+
+			var instance = _pool.Spawn();
+			_pool.Despawn(instance);
+
+			// PostDespawnEntity reparented `instance` under `externalParent`, so destroying
+			// it cascades into both children while the pool still tracks `instance`.
+			Object.Destroy(externalParent);
+			yield return null;
+
+			Assert.DoesNotThrow(() => _pool.Dispose());
 		}
 
 		[UnityTest]
