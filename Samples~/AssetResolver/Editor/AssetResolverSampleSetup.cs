@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using GameLovers.Services.AssetsImporter;
+using GameLovers.Services.Editor.Explorer;
+using GameLovers.Services.Editor.Explorer.Tabs;
 using UnityEditor;
 using UnityEditor.AddressableAssets;
 using UnityEditor.AddressableAssets.Settings;
@@ -44,6 +46,14 @@ namespace GameLovers.Services.Samples.AssetResolver.Editor
 		/// </summary>
 		public const string GroupName = "GameLoversServicesSamples_AssetResolver";
 
+		/// <summary>
+		/// Addressables label applied to every sprite this sample marks Addressable.
+		/// Lets the user demo the Services Explorer "Addressable Ids" tab against a
+		/// sample-scoped label filter without needing to define their own labels first.
+		/// Removing the sample removes the group (and the label entries with it).
+		/// </summary>
+		public const string LabelName = "services-sample-asset-resolver";
+
 		private const string SpritesSubfolder = "Sprites";
 		private const string SpriteConfigsFileName = "SpriteConfigs.asset";
 
@@ -57,6 +67,19 @@ namespace GameLovers.Services.Samples.AssetResolver.Editor
 		public static void MenuRefresh()
 		{
 			RunSetup(silent: false);
+		}
+
+		/// <summary>
+		/// Opens the Services Explorer focused on the Asset Resolver tab. Sample-scoped
+		/// indirection used by <c>AssetResolverExample.Btn_OpenExplorer</c> so the sample's
+		/// runtime assembly never has to take a reference on
+		/// <c>GameLovers.Services.Editor</c> (per services package AGENTS.md §4 — same
+		/// pattern as <c>AssetConfigsScriptableObjectEditor</c>'s sample-scoped refresh button).
+		/// </summary>
+		[MenuItem("Tools/GameLovers/Samples/Asset Resolver/Open in Explorer")]
+		public static void MenuOpenInExplorer()
+		{
+			ServicesExplorerWindow.OpenOnTab<AssetResolverTab>();
 		}
 
 		/// <summary>
@@ -167,6 +190,9 @@ namespace GameLovers.Services.Samples.AssetResolver.Editor
 					typeof(BundledAssetGroupSchema), typeof(ContentUpdateGroupSchema));
 			}
 
+			// Idempotent — AddLabel is a no-op when the label already exists in the project.
+			settings.AddLabel(LabelName, postEvent: false);
+
 			var nameToGuid = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 			foreach (var sg in spriteGuids)
 			{
@@ -182,6 +208,9 @@ namespace GameLovers.Services.Samples.AssetResolver.Editor
 					{
 						entry.SetAddress(desiredAddress, postEvent: false);
 					}
+					// SetLabel(label, value: true, force: true) ensures the label is added even if
+					// the label registry hasn't propagated yet (force bypasses the registry check).
+					entry.SetLabel(LabelName, true, force: true, postEvent: false);
 				}
 			}
 
@@ -190,7 +219,8 @@ namespace GameLovers.Services.Samples.AssetResolver.Editor
 			if (!silent || changes > 0 || renamed > 0)
 			{
 				Debug.Log($"[AssetResolverSample] Setup complete. Group: '{GroupName}', " +
-					$"sprites in group: {spriteGuids.Length}, configs entries set: {changes}, renamed: {renamed}.");
+					$"label: '{LabelName}', sprites in group: {spriteGuids.Length}, " +
+					$"configs entries set: {changes}, renamed: {renamed}.");
 			}
 		}
 
@@ -432,9 +462,16 @@ namespace GameLovers.Services.Samples.AssetResolver.Editor
 	/// when a sprite (or any asset) lands under this sample's <c>Sprites/</c> folder.
 	/// </summary>
 	/// <remarks>
-	/// Defers the actual work to <see cref="EditorApplication.delayCall"/> — modifying assets
+	/// <para>Defers the actual work to <see cref="EditorApplication.delayCall"/> — modifying assets
 	/// during <c>OnPostprocessAllAssets</c> is unsafe; the delay pushes execution to the next
-	/// editor tick when the asset database is in a consistent state.
+	/// editor tick when the asset database is in a consistent state.</para>
+	///
+	/// <para>This post-processor does NOT and CANNOT detect sample removal via <c>deletedAssets</c>.
+	/// When the user deletes the sample folder via the Project window, Unity recompiles BEFORE
+	/// firing <c>OnPostprocessAllAssets</c> for the deletion batch — by then this very class no
+	/// longer exists in the recompiled assembly, and the callback is never delivered. Sample
+	/// cleanup (removing the dedicated Addressables group + label) is therefore the user's
+	/// responsibility, as documented in the per-sample README.</para>
 	/// </remarks>
 	internal sealed class AssetResolverSampleAssetPostprocessor : AssetPostprocessor
 	{

@@ -31,10 +31,11 @@ namespace GameLovers.Services.Samples.AssetResolver
 		[SerializeField] private Button _loadCoinButton;
 		[SerializeField] private Button _loadEnemyButton;
 		[SerializeField] private Button _unloadAllButton;
+		[SerializeField] private Button _openExplorerButton;
 		[SerializeField] private Image    _spriteImage;
 		[SerializeField] private TMP_Text _statusText;
 
-		private IAssetAdderService _resolver;
+		private AssetResolverService _resolver;
 
 		private void Awake()
 		{
@@ -42,6 +43,14 @@ namespace GameLovers.Services.Samples.AssetResolver
 			_loadCoinButton?.onClick.AddListener(Btn_LoadCoin);
 			_loadEnemyButton?.onClick.AddListener(Btn_LoadEnemy);
 			_unloadAllButton?.onClick.AddListener(Btn_UnloadAll);
+			_openExplorerButton?.onClick.AddListener(Btn_OpenExplorer);
+
+			// The sample-scoped 'Open in Explorer' menu only exists in the editor; hide
+			// the button in player builds so it doesn't sit there as a dead control.
+			if (_openExplorerButton != null)
+			{
+				_openExplorerButton.gameObject.SetActive(Application.isEditor);
+			}
 
 			EnsureInputModuleOnEventSystem();
 		}
@@ -86,6 +95,11 @@ namespace GameLovers.Services.Samples.AssetResolver
 		{
 			_resolver = new AssetResolverService();
 
+			// Bind through MainInstaller so the Services Explorer "Asset Resolver" tab
+			// can resolve and inspect the live AssetMap. Mirrors the ServicesPlayground
+			// sample's binding pattern.
+			MainInstaller.Bind<IAssetResolverService>(_resolver);
+
 			if (_spriteConfigs == null)
 			{
 				SetStatus("No SpriteConfigs assigned on AssetResolverExample. See the per-sample README.");
@@ -98,7 +112,9 @@ namespace GameLovers.Services.Samples.AssetResolver
 				return;
 			}
 
-			_resolver.AddConfigs(_spriteConfigs);
+			// AddConfigs is a C# 8 default interface method on IAssetAdderService — must be
+			// dispatched through the interface (see services package AGENTS.md §4).
+			((IAssetAdderService)_resolver).AddConfigs(_spriteConfigs);
 			SetStatus($"Registered {_spriteConfigs.Configs.Count} entries. Click a button to load.");
 		}
 
@@ -106,18 +122,19 @@ namespace GameLovers.Services.Samples.AssetResolver
 		{
 			if (_resolver == null || _spriteConfigs == null)
 			{
+				MainInstaller.Clean();
 				return;
 			}
 
 			// Avoid the package's "no asset list for the given type" warning when nothing
 			// was ever registered (e.g., Play was pressed before completing the Addressables
 			// setup from the per-sample README).
-			if (_spriteConfigs.Configs == null || _spriteConfigs.Configs.Count == 0)
+			if (_spriteConfigs.Configs != null && _spriteConfigs.Configs.Count > 0)
 			{
-				return;
+				_resolver.UnloadAssets<SpriteId, Sprite>(clearReferences: true, _spriteConfigs);
 			}
 
-			_resolver.UnloadAssets<SpriteId, Sprite>(clearReferences: true, _spriteConfigs);
+			MainInstaller.Clean();
 		}
 
 		// ---------------- Button handlers ----------------
@@ -125,6 +142,19 @@ namespace GameLovers.Services.Samples.AssetResolver
 		public void Btn_LoadHero()  => Load(SpriteId.Hero).Forget();
 		public void Btn_LoadCoin()  => Load(SpriteId.Coin).Forget();
 		public void Btn_LoadEnemy() => Load(SpriteId.Enemy).Forget();
+
+		/// <summary>
+		/// Opens the Services Explorer focused on the Asset Resolver tab. Routed via the
+		/// sample editor assembly's menu item so this runtime script never has to take a
+		/// reference on the package's editor assembly (see services package AGENTS.md §4).
+		/// </summary>
+		public void Btn_OpenExplorer()
+		{
+#if UNITY_EDITOR
+			UnityEditor.EditorApplication.ExecuteMenuItem(
+				"Tools/GameLovers/Samples/Asset Resolver/Open in Explorer");
+#endif
+		}
 
 		public void Btn_UnloadAll()
 		{

@@ -4,7 +4,7 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - 2026-04-27
+## [2.0.0] - 2026-04-26
 
 **New**:
 - Added **Services Explorer** window (`Tools > GameLovers > Services Explorer`) with 13 live-refresh tabs: Overview, Installer, MessageBroker, Tick, Coroutine, Pool, Data, Time, RNG, AssetResolver, Versioning, Assets Importer, Addressable Ids — works in both Edit and Play mode
@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Added Editor/AssetsImporter/: `AssetsImporter`, `AssetsToolImporter`, `AssetConfigsImporter`, `AddressableIdsGenerator`, `AddressablesIdGeneratorSettings` (ns `GameLovers.Services.AssetsImporter.Editor`)
 - Added importable **Samples** under `Samples~/` (importable via Unity Package Manager > GameLovers Services > Samples).
   - **Services Playground** — single-scene, zero-setup walk-through that wires every foundation service via `MainInstaller` and exercises 10 of 13 Services Explorer tabs end-to-end. 
-  - **Asset Resolver** — focused demo of `AssetResolverService` end-to-end (`AddConfigs` / `RequestAsset` / `UnloadAssets`) with `SpriteConfigs : AssetConfigsScriptableObject<SpriteId, Sprite>`. Drives the three Services Explorer tabs the Playground does not cover (Asset Resolver, Assets Importer, Addressable Ids). Ships with editor automation (`AssetResolverSampleSetup` + `AssetPostprocessor`) that auto-marks `Sprites/` PNGs as Addressable in a dedicated group `GameLoversServicesSamples_AssetResolver`, renames non-canonical filenames to `Hero/Coin/Enemy` (substring match, alphabetical fallback), and wires `SpriteConfigs.asset` rows on import. Manual escape hatches: `Tools > GameLovers > Samples > Asset Resolver > Refresh Addressables` menu and a sample-scoped **Refresh AssetResolver Sample Addressables** button on the `SpriteConfigs.asset` inspector. Existing user mappings to other sprites are respected.
+  - **Asset Resolver** — focused demo of `AssetResolverService` end-to-end (`AddConfigs` / `RequestAsset` / `UnloadAssets`) with `SpriteConfigs : AssetConfigsScriptableObject<SpriteId, Sprite>`. Drives the three Services Explorer tabs the Playground does not cover (Asset Resolver, Assets Importer, Addressable Ids). 
 
 **Changed**:
 - Addressable Ids generator and Assets Importer settings moved from `Assets/*.asset` ScriptableObjects to `ProjectSettings/` ScriptableSingletons (mirrors `VersioningEditorSettings`).
@@ -42,7 +42,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Corrected `IAssetLoader.UnloadAsset` XML documentation: removed the incorrect "will also destroy GameObject instances" claim — `Addressables.Release(gameObject)` does not destroy the instance; callers must `Object.Destroy` it separately.
 - `IAsyncCoroutine.StopCoroutine(bool triggerOnComplete)` now honors its `triggerOnComplete` parameter and flips `IsCompleted` to `true` and `IsRunning` to `false` after stopping. The previous implementation always invoked `OnComplete` callbacks regardless of the flag and left state flags unchanged, so consumers could not distinguish a stopped coroutine from a running one and `triggerOnComplete: false` was silently ignored.
 - `GameObjectPool.Dispose()` and `GameObjectPool<T>.Dispose()` now skip pooled entries whose underlying `GameObject` has already been destroyed by an external owner (e.g. a parent GameObject was destroyed while pooled instances were still reparented under it via `DespawnToSampleParent`). 
-- `PerformanceTestSetup.InitializePerformanceTestMetadata()` now also primes the `PT_Settings` PlayerPref (with `MeasurementCount = -1`, the package's "no override" sentinel). The previous setup primed only `PT_Run`, which left `RunSettings.Instance` lazy-loading from an empty JSON in EditMode — the loader silently returned `null` and `MethodMeasurement.SettingsOverride()` then NRE'd at the first `Measure.Method(...).Run()` call before any warmup ran. All EditMode `[Test, Performance]` tests in the suite (`ObjectPoolPerformanceTest`, `MessageBrokerPerformanceTest`) were affected. Added `PerformanceTestSetupTest.MeasureMethod_AfterInitialize_DoesNotThrow` as a regression sentinel so a future change to `PerformanceTestSetup` that drops either PlayerPref will fail loudly with a clear class name. 
 
 **Breaking Changes** — see `MIGRATION.md` for details:
 - Pool types moved from `GameLovers.Services` to `GameLovers.Services.Pooling` (`IPoolService`, `IObjectPool`, `IObjectPool<T>`, `ObjectPool<T>`, `ObjectPoolBase<T>`, `GameObjectPool`, `GameObjectPool<T>`, `IPoolEntitySpawn`, `IPoolEntitySpawn<T>`, `IPoolEntityDespawn`, `IPoolEntityObject<T>`). `PoolService` concrete class remains in `GameLovers.Services`.

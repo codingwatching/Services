@@ -1,0 +1,23 @@
+{
+    "name": "GameLovers.Services.Samples.AssetResolver",
+    "rootNamespace": "GameLovers.Services.Samples.AssetResolver",
+    "references": [
+        "GameLovers.Services",
+        "GameLovers.GameData",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "UniTask",
+        "Unity.Addressables",
+        "Unity.ResourceManager",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

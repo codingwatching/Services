@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -78,7 +79,9 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		// Belt-and-braces against bootstraps that fail to dispose the broker / call
 		// MainInstaller.Clean() in OnDestroy — the broker's Subscriptions dictionary lives
 		// on the service instance and survives until the static MainInstaller field is
-		// reset (next domain reload) without this guard.
+		// reset (next domain reload) without this guard. Note: ServiceTab also invalidates
+		// the refresh digest on play-mode transitions, so the deferred refresh that lands
+		// after scene teardown will rebuild from scratch instead of short-circuiting.
 		protected override void OnExitingPlayMode()
 		{
 			_list.Clear();
@@ -87,6 +90,18 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 
 		private void RefreshSubscriptionList()
 		{
+			var isPlaying = UnityEditor.EditorApplication.isPlaying;
+			var broker = isPlaying ? TryResolve<IMessageBrokerService>() as MessageBrokerService : null;
+			var digest = ComputeDigest(isPlaying, broker);
+
+			// Skip rebuild if nothing changed — see ServiceTab.TryShortCircuitRefresh.
+			// This is what keeps rapid foldout clicks from getting eaten by the periodic
+			// timer destroying mouse-captured VisualElements mid-click.
+			if (TryShortCircuitRefresh(digest))
+			{
+				return;
+			}
+
 			_list.Clear();
 
 			// Hide subscriber state in edit mode (initial OR after a play session ended)
@@ -94,13 +109,11 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			// Together with OnExitingPlayMode() this guarantees the subscription list does
 			// not retain a live snapshot after Stop, even if the consumer's bootstrap
 			// forgot to dispose the broker / call MainInstaller.Clean() in OnDestroy.
-			if (!UnityEditor.EditorApplication.isPlaying)
+			if (!isPlaying)
 			{
 				_list.Add(MakeEmptyLabel());
 				return;
 			}
-
-			var broker = TryResolve<IMessageBrokerService>() as MessageBrokerService;
 
 			if (broker == null)
 			{
@@ -121,7 +134,10 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 				var messageType = kvp.Key;
 				var subscribers = kvp.Value;
 
-				var foldout = new Foldout { text = $"{messageType.Name}  ({subscribers.Count})", value = true };
+				// Sticky foldouts so the periodic Refresh doesn't re-expand on every tick.
+				var foldout = MakeStickyFoldout(
+					key: messageType.FullName ?? messageType.Name,
+					text: $"{messageType.Name}  ({subscribers.Count})");
 				foldout.AddToClassList("section-foldout");
 
 				// Place the Unsubscribe button on the foldout's header row (next to the
@@ -155,6 +171,39 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 
 				_list.Add(foldout);
 			}
+		}
+
+		/// <summary>
+		/// Builds a deterministic digest of every piece of state the rebuild path renders:
+		/// edit-mode-empty, not-bound, and per-subscription <c>(messageType, [target.method, ...])</c>
+		/// tuples. When two consecutive refreshes produce the same digest the rebuild can be
+		/// skipped — keeping rapid foldout clicks from getting destroyed mid-click by the
+		/// 250 ms timer.
+		/// </summary>
+		private static string ComputeDigest(bool isPlaying, MessageBrokerService broker)
+		{
+			if (!isPlaying)
+			{
+				return "<edit>";
+			}
+			if (broker == null)
+			{
+				return "<unbound>";
+			}
+
+			var sb = new StringBuilder();
+
+			foreach (var kvp in broker.Subscriptions)
+			{
+				sb.Append(kvp.Key.FullName ?? kvp.Key.Name).Append('[');
+				foreach (var sub in kvp.Value)
+				{
+					sb.Append(sub.Key?.GetType().FullName ?? "(null)").Append('.');
+					sb.Append((sub.Value as Delegate)?.Method?.Name ?? "?").Append(',');
+				}
+				sb.Append(']');
+			}
+			return sb.ToString();
 		}
 
 		// Re-scans assemblies only when the loaded count changes (cheap to do per refresh).

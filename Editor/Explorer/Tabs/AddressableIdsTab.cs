@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using GameLovers.Services.AddressableIds.Editor;
 using UnityEditor;
@@ -14,6 +16,13 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class AddressableIdsTab : ServiceTab
 	{
+		private const string PendingPlaceholderText = "Click to compute";
+		private const string PendingFoldoutText = "Details (click 'Check for stale Ids' first)";
+		private static readonly Color WarnColor = new Color(0.95f, 0.75f, 0.30f);
+		private static readonly Color ErrorColor = new Color(0.9f, 0.5f, 0.4f);
+		private static readonly Color OkColor = new Color(0.6f, 0.9f, 0.6f);
+		private static readonly Color MutedColor = new Color(0.7f, 0.7f, 0.7f);
+
 		public override string DisplayName => "Addressable Ids";
 		protected override int RefreshIntervalMs => 2000;
 
@@ -22,9 +31,17 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		private TextField _namespaceField;
 		private Label _namespaceError;
 		private TextField _labelField;
+
+		private Label _freshnessBanner;
 		private Label _outputPathLabel;
-		private Label _outputStatusLabel;
-		private Label _lastResultLabel;
+		private Label _lastGenerationLabel;
+
+		private Button _checkStaleButton;
+		private Label _pendingSummaryLabel;
+		private Foldout _pendingFoldout;
+		private VisualElement _addedList;
+		private VisualElement _removedList;
+		private VisualElement _warningsList;
 
 		protected override void BuildUi()
 		{
@@ -99,24 +116,52 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			// ---- Output section ----
 			scroll.Add(MakeSectionLabel("Output"));
 
-			_outputStatusLabel = new Label();
-			_outputStatusLabel.style.fontSize = 10;
-			_outputStatusLabel.style.marginBottom = 2;
-			scroll.Add(_outputStatusLabel);
+			_freshnessBanner = new Label();
+			_freshnessBanner.style.fontSize = 11;
+			_freshnessBanner.style.marginBottom = 2;
+			_freshnessBanner.style.unityFontStyleAndWeight = FontStyle.Bold;
+			scroll.Add(_freshnessBanner);
 
 			_outputPathLabel = new Label();
 			_outputPathLabel.AddToClassList("json-preview");
 			scroll.Add(_outputPathLabel);
 
-			_lastResultLabel = new Label();
-			_lastResultLabel.style.fontSize = 10;
-			_lastResultLabel.style.color = new StyleColor(new Color(0.6f, 0.9f, 0.6f));
-			_lastResultLabel.style.marginTop = 2;
-			scroll.Add(_lastResultLabel);
+			_lastGenerationLabel = new Label();
+			_lastGenerationLabel.style.fontSize = 10;
+			_lastGenerationLabel.style.color = new StyleColor(MutedColor);
+			_lastGenerationLabel.style.marginTop = 2;
+			scroll.Add(_lastGenerationLabel);
 
-			var bar = MakeActionBar();
-			bar.Add(new Button(OnRevealFile) { text = "Reveal file" });
-			scroll.Add(bar);
+			var outputBar = MakeActionBar();
+			outputBar.Add(new Button(OnRevealFile) { text = "Reveal file" });
+			outputBar.Add(new Button(OnRevealSettings) { text = "Open Settings file" });
+			scroll.Add(outputBar);
+
+			// ---- Pending changes section ----
+			scroll.Add(MakeSectionLabel("Pending changes"));
+
+			var pendingRow = new VisualElement();
+			pendingRow.AddToClassList("row");
+			_checkStaleButton = new Button(OnCheckStale) { text = "Check for stale Ids" };
+			_checkStaleButton.tooltip = "Scans Addressables and diffs against the last generation snapshot. " +
+			                            "On-demand only — not run on tab refresh.";
+			pendingRow.Add(_checkStaleButton);
+
+			_pendingSummaryLabel = new Label(PendingPlaceholderText);
+			_pendingSummaryLabel.AddToClassList("row-label");
+			_pendingSummaryLabel.style.color = new StyleColor(MutedColor);
+			pendingRow.Add(_pendingSummaryLabel);
+			scroll.Add(pendingRow);
+
+			_pendingFoldout = new Foldout { text = PendingFoldoutText, value = false };
+
+			_addedList = new VisualElement();
+			_removedList = new VisualElement();
+			_warningsList = new VisualElement();
+			_pendingFoldout.Add(_addedList);
+			_pendingFoldout.Add(_removedList);
+			_pendingFoldout.Add(_warningsList);
+			scroll.Add(_pendingFoldout);
 
 			Add(scroll);
 
@@ -141,37 +186,177 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		private void RefreshOutput()
 		{
 			var settings = AddressableIdsEditorSettings.instance;
-			var scriptPath = $"Assets/{settings.ScriptFilename}.cs";
+			var freshness = AddressableIdsGeneratorUtils.ComputeFreshness(settings);
 
-			// Also search for an existing file with this name in case it's not at the root.
-			var found = AssetDatabase.FindAssets($"t:Script {settings.ScriptFilename}");
+			_outputPathLabel.text = freshness.ScriptPath;
 
-			foreach (var guid in found)
+			if (!freshness.ScriptExists)
 			{
-				var path = AssetDatabase.GUIDToAssetPath(guid);
-
-				if (path.EndsWith($"/{settings.ScriptFilename}.cs"))
-				{
-					scriptPath = path;
-					break;
-				}
+				_freshnessBanner.text = "Not generated yet — click 'Generate Addressable Ids'.";
+				_freshnessBanner.style.color = new StyleColor(ErrorColor);
+				_freshnessBanner.style.display = DisplayStyle.Flex;
 			}
-
-			var projectRoot = Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
-			var absPath = Path.Combine(projectRoot, scriptPath);
-
-			if (File.Exists(absPath))
+			else if (freshness.IsStale)
 			{
-				_outputStatusLabel.text = scriptPath;
-				_outputStatusLabel.style.color = new StyleColor(new Color(0.6f, 0.9f, 0.6f));
+				_freshnessBanner.text = $"Out of date — Addressables modified after the file was generated " +
+				                         $"({freshness.LatestSourceWriteTime:HH:mm:ss} > {freshness.ScriptWriteTime:HH:mm:ss}).";
+				_freshnessBanner.style.color = new StyleColor(WarnColor);
+				_freshnessBanner.style.display = DisplayStyle.Flex;
 			}
 			else
 			{
-				_outputStatusLabel.text = "Not generated yet: " + scriptPath;
-				_outputStatusLabel.style.color = new StyleColor(new Color(0.9f, 0.5f, 0.4f));
+				_freshnessBanner.text = $"Up to date — script newer than Addressables ({freshness.ScriptWriteTime:HH:mm:ss}).";
+				_freshnessBanner.style.color = new StyleColor(OkColor);
+				_freshnessBanner.style.display = DisplayStyle.Flex;
 			}
 
-			_outputPathLabel.text = scriptPath;
+			if (settings.HasSnapshot)
+			{
+				var relative = FormatRelative(settings.LastGenerationUtc);
+				var filterTxt = string.IsNullOrEmpty(settings.LastGenerationLabelFilterUsed)
+					? "(none)"
+					: settings.LastGenerationLabelFilterUsed;
+				_lastGenerationLabel.text =
+					$"Last generated: {relative} — {settings.LastGenerationIdCount} ids, " +
+					$"{settings.LastGenerationLabelCount} labels (filename: {settings.LastGenerationFilenameUsed}, filter: {filterTxt}).";
+				_lastGenerationLabel.style.display = DisplayStyle.Flex;
+			}
+			else
+			{
+				_lastGenerationLabel.text = "Last generated: — (no snapshot recorded yet).";
+				_lastGenerationLabel.style.display = DisplayStyle.Flex;
+			}
+		}
+
+		private void ResetPendingChanges()
+		{
+			_pendingSummaryLabel.text = PendingPlaceholderText;
+			_pendingSummaryLabel.style.color = new StyleColor(MutedColor);
+			_pendingFoldout.text = PendingFoldoutText;
+			_pendingFoldout.value = false;
+			_addedList.Clear();
+			_removedList.Clear();
+			_warningsList.Clear();
+		}
+
+		private void OnCheckStale()
+		{
+			_checkStaleButton.SetEnabled(false);
+			try
+			{
+				var settings = AddressableIdsEditorSettings.instance;
+				var diff = AddressableIdsGeneratorUtils.Diff(settings);
+
+				_pendingSummaryLabel.text = FormatSummary(diff);
+				_pendingSummaryLabel.style.color = new StyleColor(SummaryColor(diff));
+
+				PopulateDiffFoldout(diff);
+				_pendingFoldout.text = $"Details ({TotalDiffCount(diff)} entries) — click to expand";
+			}
+			finally
+			{
+				_checkStaleButton.SetEnabled(true);
+			}
+		}
+
+		private void PopulateDiffFoldout(DiffResult diff)
+		{
+			_addedList.Clear();
+			_removedList.Clear();
+			_warningsList.Clear();
+
+			AppendDiffSubsection(_addedList, $"Added addresses ({diff.AddedAddresses.Count})", diff.AddedAddresses, OkColor);
+			AppendDiffSubsection(_addedList, $"Added labels ({diff.AddedLabels.Count})", diff.AddedLabels, OkColor);
+
+			AppendDiffSubsection(_removedList, $"Removed addresses ({diff.RemovedAddresses.Count})", diff.RemovedAddresses, ErrorColor);
+			AppendDiffSubsection(_removedList, $"Removed labels ({diff.RemovedLabels.Count})", diff.RemovedLabels, ErrorColor);
+
+			AppendDiffSubsection(_warningsList,
+				$"Sanitized-name collisions ({diff.SanitizedNameCollisions.Count})",
+				diff.SanitizedNameCollisions, WarnColor);
+			AppendDiffSubsection(_warningsList,
+				$"Entries with null AssetType ({diff.NullAssetTypeAddresses.Count})",
+				diff.NullAssetTypeAddresses, WarnColor);
+
+			if (!diff.HasSnapshot)
+			{
+				var lbl = new Label("No snapshot recorded yet — generate once to enable add/remove diffs.");
+				lbl.style.fontSize = 10;
+				lbl.style.color = new StyleColor(MutedColor);
+				lbl.style.marginTop = 4;
+				_addedList.Add(lbl);
+			}
+		}
+
+		private static void AppendDiffSubsection(VisualElement parent, string heading, IReadOnlyList<string> items, Color accent)
+		{
+			var head = new Label(heading);
+			head.style.fontSize = 11;
+			head.style.unityFontStyleAndWeight = FontStyle.Bold;
+			head.style.marginTop = 4;
+			head.style.color = new StyleColor(accent);
+			parent.Add(head);
+
+			if (items == null || items.Count == 0)
+			{
+				var empty = new Label("— none —");
+				empty.AddToClassList("tab-empty-label");
+				parent.Add(empty);
+				return;
+			}
+
+			for (var i = 0; i < items.Count; i++)
+			{
+				var row = new Label(items[i]);
+				row.AddToClassList("row-label-mono");
+				parent.Add(row);
+			}
+		}
+
+		private static string FormatSummary(DiffResult diff)
+		{
+			var prefix = string.Empty;
+
+			if (diff.HasSnapshot && (diff.FilenameChangedSinceSnapshot || diff.LabelFilterChangedSinceSnapshot))
+			{
+				prefix = "[settings changed since last gen] ";
+			}
+			else if (!diff.HasSnapshot)
+			{
+				prefix = "[no snapshot] ";
+			}
+
+			return $"{prefix}+{diff.AddedAddresses.Count} added \u00b7 -{diff.RemovedAddresses.Count} removed \u00b7 " +
+			       $"{diff.AddedLabels.Count} new label{(diff.AddedLabels.Count == 1 ? string.Empty : "s")} \u00b7 " +
+			       $"{diff.SanitizedNameCollisions.Count} collision{(diff.SanitizedNameCollisions.Count == 1 ? string.Empty : "s")} \u00b7 " +
+			       $"{diff.NullAssetTypeAddresses.Count} null type{(diff.NullAssetTypeAddresses.Count == 1 ? string.Empty : "s")}";
+		}
+
+		private static Color SummaryColor(DiffResult diff)
+		{
+			return TotalDiffCount(diff) == 0 ? OkColor : WarnColor;
+		}
+
+		private static int TotalDiffCount(DiffResult diff)
+		{
+			return diff.AddedAddresses.Count + diff.RemovedAddresses.Count
+			       + diff.AddedLabels.Count + diff.RemovedLabels.Count
+			       + diff.SanitizedNameCollisions.Count + diff.NullAssetTypeAddresses.Count;
+		}
+
+		private static string FormatRelative(DateTime utc)
+		{
+			if (utc == default)
+			{
+				return "—";
+			}
+
+			var span = DateTime.UtcNow - utc;
+
+			if (span.TotalSeconds < 60) return $"{(int)span.TotalSeconds}s ago";
+			if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m ago";
+			if (span.TotalHours < 48) return $"{(int)span.TotalHours}h ago";
+			return $"{(int)span.TotalDays}d ago";
 		}
 
 		private void OnGenerate()
@@ -190,30 +375,33 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 				return;
 			}
 
-			var result = AddressableIdsGeneratorUtils.Generate(settings);
+			AddressableIdsGeneratorUtils.Generate(settings);
 
-			_lastResultLabel.text = $"Last generation: {result.IdCount} ids, {result.LabelCount} labels → {result.OutputPath}";
 			RefreshOutput();
+			ResetPendingChanges();
 		}
 
 		private void OnRevealFile()
 		{
 			var settings = AddressableIdsEditorSettings.instance;
-			var found = AssetDatabase.FindAssets($"t:Script {settings.ScriptFilename}");
+			var scriptPath = AddressableIdsGeneratorUtils.ResolveScriptPath(settings);
+			var projectRoot = Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
+			var absPath = Path.Combine(projectRoot, scriptPath);
 
-			foreach (var guid in found)
+			if (File.Exists(absPath))
 			{
-				var path = AssetDatabase.GUIDToAssetPath(guid);
-
-				if (path.EndsWith($"/{settings.ScriptFilename}.cs"))
-				{
-					var projectRoot = Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
-					EditorUtility.RevealInFinder(Path.Combine(projectRoot, path));
-					return;
-				}
+				EditorUtility.RevealInFinder(absPath);
+				return;
 			}
 
 			Debug.LogWarning($"[ServicesExplorer] {settings.ScriptFilename}.cs not found.");
+		}
+
+		private static void OnRevealSettings()
+		{
+			var projectRoot = Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
+			var absPath = Path.Combine(projectRoot, "ProjectSettings", "AddressableIdsEditorSettings.asset");
+			EditorUtility.RevealInFinder(absPath);
 		}
 
 		private static void OnOpenAddressablesGroups()

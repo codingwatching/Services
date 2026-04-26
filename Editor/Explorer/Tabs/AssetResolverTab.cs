@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -32,6 +33,10 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		_destructiveToggle = new Toggle("Enable destructive actions");
 		_destructiveToggle.AddToClassList("destructive-toggle");
 		_destructiveToggle.value = false;
+		// The destructive toggle gates per-row Unload buttons in the rebuild path, so
+		// flipping it must invalidate the digest — otherwise the next Refresh sees
+		// matching data and short-circuits, leaving the buttons un-rendered.
+		_destructiveToggle.RegisterValueChangedCallback(_ => InvalidateRefreshDigest());
 		header.Add(_destructiveToggle);
 		Add(header);
 
@@ -48,9 +53,18 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 
 		protected override void Refresh()
 		{
-			_tree.Clear();
-
 			var resolver = TryResolve<IAssetResolverService>() as AssetResolverService;
+			var digest = ComputeDigest(resolver);
+
+			// Skip rebuild if nothing changed — see ServiceTab.TryShortCircuitRefresh.
+			// This is what keeps rapid foldout clicks from getting eaten by the periodic
+			// timer destroying mouse-captured VisualElements mid-click.
+			if (TryShortCircuitRefresh(digest))
+			{
+				return;
+			}
+
+			_tree.Clear();
 
 			if (resolver == null)
 			{
@@ -73,7 +87,10 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 				var assetType = assetKvp.Key;
 				var idMap = assetKvp.Value;
 
-				var assetFoldout = new Foldout { text = assetType.Name };
+				// Sticky foldouts so the periodic Refresh doesn't re-expand on every tick.
+				var assetFoldout = MakeStickyFoldout(
+					key: assetType.FullName ?? assetType.Name,
+					text: assetType.Name);
 				assetFoldout.AddToClassList("section-foldout");
 
 				foreach (var idKvp in idMap)
@@ -81,7 +98,9 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 					var idType = idKvp.Key;
 					var dictionary = idKvp.Value as IDictionary;
 
-					var idFoldout = new Foldout { text = $"Id: {idType.Name}  ({dictionary?.Count ?? 0})" };
+					var idFoldout = MakeStickyFoldout(
+						key: $"{assetType.FullName ?? assetType.Name}/{idType.FullName ?? idType.Name}",
+						text: $"Id: {idType.Name}  ({dictionary?.Count ?? 0})");
 					idFoldout.AddToClassList("section-foldout");
 
 					if (dictionary != null)
@@ -115,6 +134,45 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 
 				_tree.Add(assetFoldout);
 			}
+		}
+
+		/// <summary>
+		/// Builds a deterministic digest of every piece of state the rebuild path renders:
+		/// the not-bound branch, the destructive-toggle flag (gates per-row Unload buttons),
+		/// and per-row <c>(assetType, idType, id, loaded)</c> tuples. When two consecutive
+		/// refreshes produce the same digest the rebuild can be skipped — keeping rapid
+		/// foldout clicks from getting destroyed mid-click by the 250 ms timer.
+		/// </summary>
+		private string ComputeDigest(AssetResolverService resolver)
+		{
+			if (resolver == null)
+			{
+				return "<unbound>";
+			}
+
+			var sb = new StringBuilder();
+			sb.Append(_destructiveToggle != null && _destructiveToggle.value ? "DST|" : "---|");
+
+			foreach (var assetKvp in resolver.AssetMap)
+			{
+				sb.Append(assetKvp.Key.FullName ?? assetKvp.Key.Name).Append('{');
+				foreach (var idKvp in assetKvp.Value)
+				{
+					sb.Append(idKvp.Key.FullName ?? idKvp.Key.Name).Append('[');
+					if (idKvp.Value is IDictionary dict)
+					{
+						foreach (DictionaryEntry e in dict)
+						{
+							sb.Append(e.Key);
+							var assetRef = e.Value as AssetReference;
+							sb.Append(assetRef != null && assetRef.IsValid() ? "=1," : "=0,");
+						}
+					}
+					sb.Append(']');
+				}
+				sb.Append('}');
+			}
+			return sb.ToString();
 		}
 
 		private void OnUnloadAll()
