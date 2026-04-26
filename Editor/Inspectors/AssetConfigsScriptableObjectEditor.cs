@@ -32,9 +32,21 @@ namespace GameLovers.Services.Inspectors.Editor
 			_diagnosticsPanel.Add(_diagnosticsLabel);
 			root.Add(_diagnosticsPanel);
 
-			// ---- Default inspector ----
-			var defaultInspector = new InspectorElement(serializedObject);
-			root.Add(defaultInspector);
+			// ---- Default inspector (manual SerializedProperty iteration) ----
+			// We deliberately avoid `new InspectorElement(serializedObject)` here. Because
+			// it would re-resolve to this same editor (editorForChildClasses: true) and recurse
+			// infinitely → stack overflow on selection of any concrete subclass.
+			var iterator = serializedObject.GetIterator();
+			if (iterator.NextVisible(enterChildren: true))
+			{
+				do
+				{
+					var field = new PropertyField(iterator.Copy());
+					field.SetEnabled(iterator.propertyPath != "m_Script");
+					root.Add(field);
+				} while (iterator.NextVisible(enterChildren: false));
+			}
+			root.Bind(serializedObject);
 
 			// ---- Regenerate button ----
 			var spacer = new VisualElement();

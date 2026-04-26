@@ -12,5 +12,17 @@
     "com.gamelovers.gamedata": "1.0.0",
     "com.unity.addressables": "1.21.20",
     "com.cysharp.unitask": "2.5.10"
-  }
+  },
+  "samples": [
+    {
+      "displayName": "Services Playground",
+      "description": "Zero-setup playground that wires every foundation service via MainInstaller and drives the Services Explorer (Installer, Versioning, Message Broker, Tick, Coroutine, Pool, Data, Time, RNG, Commands). Open the scene and press Play — the UI is built programmatically; no per-import wiring.",
+      "path": "Samples~/ServicesPlayground"
+    },
+    {
+      "displayName": "Asset Resolver",
+      "description": "Demonstrates AssetResolverService end-to-end: typed asset loading by id-enum via AssetConfigsScriptableObject, plus the Addressable Ids generator and Assets Importer pipeline. Requires Addressables setup (~2 minutes) — see the per-sample README for the four steps.",
+      "path": "Samples~/AssetResolver"
+    }
+  ]
 }

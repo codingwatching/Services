@@ -301,6 +301,21 @@ File names and namespaces are set interactively in the Project window, identical
 
 ---
 
+## Samples
+
+Importable samples live under [`Samples~/`](Samples~/) and are exposed via the Unity Package Manager:
+
+| Sample | Addressables required? | Focus |
+|---|---|---|
+| **Services Playground** | No | All foundation services (`MainInstaller`, `MessageBroker`, `Tick`, `Coroutine`, `Pool`, `Data`, `Time`, `Rng`, `Commands`, `Versioning`) wired into a single scene. Doubles as the manual end-to-end protocol for the **Services Explorer** window |
+| **Asset Resolver** | Yes (~2 minutes setup) | Typed asset loading via `AssetResolverService` + `AssetConfigsScriptableObject<TId, TAsset>`, plus the Addressable Ids generator and Assets Importer pipeline |
+
+Each sample ships as a complete, runnable Unity scene with a programmatically-built UI — no per-import wiring step (the Asset Resolver sample requires marking your sprites Addressable; see its README). For the index, AI-assistant common-mistakes section, and full list of sample-only types (which are NOT part of the package public API), see [`Samples~/README.md`](Samples~/README.md).
+
+To import a sample: **Window > Package Manager > GameLovers Services > Samples > Import**.
+
+---
+
 ## Contributing
 
 Contributions are welcome! See [GitHub Issues](https://github.com/CoderGamester/com.gamelovers.services/issues) to report bugs or request features. For development setup, architecture details, namespace conventions, and coding standards, see [AGENTS.md](AGENTS.md).

@@ -4,6 +4,25 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+**New**:
+- Added importable **Samples** under `Samples~/` (importable via Unity Package Manager > GameLovers Services > Samples).
+  - **Services Playground** — single-scene, zero-setup walk-through that wires every foundation service via `MainInstaller` and exercises 10 of 13 Services Explorer tabs end-to-end. Ships a hand-authored `ServicesPlaygroundUI.prefab` (Canvas + 27 buttons across 10 sections + scrollable Log + scrollable LiveStatus) instanced into `ServicesPlayground.unity`. The driver wires `Button.onClick` listeners in `Awake`, ticks the bullet pool to despawn off-screen entries, and preserves the user's drag position on log auto-scroll. The pool's sample entity is generated as a tinted sphere primitive at runtime — there is no prefab asset to wire up.
+  - **Asset Resolver** — focused demo of `AssetResolverService` end-to-end (`AddConfigs` / `RequestAsset` / `UnloadAssets`) with `SpriteConfigs : AssetConfigsScriptableObject<SpriteId, Sprite>`. Drives the three Services Explorer tabs the Playground does not cover (Asset Resolver, Assets Importer, Addressable Ids). Ships a hand-authored `AssetResolverUI.prefab` instanced into `AssetResolver.unity`; per-sample README walks through the ~2-minute Addressables setup.
+  - All sample-only types live under `GameLovers.Services.Samples.<SampleName>` namespaces to make the public-API boundary explicit.
+- `Samples~/README.md` master index with an AI-assistant common-mistakes section (sourced from `AGENTS.md` §4) and a canonical list of sample-only types that are NOT part of the package public API.
+- Sample drivers swap `EventSystem` input modules at runtime via `#if ENABLE_INPUT_SYSTEM` so the samples work under any consumer Active Input Handling setting (`StandaloneInputModule` for legacy / `InputSystemUIInputModule` for the New Input System).
+- UI text in samples uses `TextMeshProUGUI` (TMP); consumers may need to import TMP Essentials once on first Play.
+
+**Fixed**:
+- `AssetConfigsScriptableObjectEditor.CreateInspectorGUI` no longer wraps the target in `new InspectorElement(serializedObject)`. With `editorForChildClasses: true`, that constructor re-resolved to the same custom editor and recursed infinitely (~5,300 levels deep) until the OS stack-guard region killed the editor with `EXC_BAD_ACCESS`. Inspector now iterates `serializedObject.GetIterator()` manually and adds `PropertyField` per visible property. Bug had been latent since no concrete subclass of `AssetConfigsScriptableObject<,>` existed in this repo until the new sample suite added `SpriteConfigs`.
+
+**Changed**:
+- `package.json` now declares a `samples[]` block exposing the new samples to Package Manager.
+- Package `README.md` gained a **Samples** section between **Editor Tools** and **Contributing** linking out to `Samples~/`.
+- `AGENTS.md`: §3 documents `Samples~/`; §4 adds a **Sample Zero-Setup Invariant** gotcha (programmatic-UI ban, deterministic `.cs.meta` GUIDs, sample-namespace boundary, prefab-regeneration recipe) and an `IAssetAdderService.AddConfigs<TId, TAsset>` default-interface-method gotcha (CS1061 when called through `AssetResolverService` concrete type — interface-only dispatch); §8 adds a samples update-policy bullet that triples the four-edit checklist (master README + per-sample README + `package.json` `samples[]` + AGENTS §3 row).
+
 ## [2.0.0] - 2026-04-24
 
 **New**:
