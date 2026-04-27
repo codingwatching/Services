@@ -31,6 +31,28 @@ namespace GameLoversEditor.Services.Tests
 			public void OnSpawn(int data) => SpawnData = data;
 		}
 
+		// Hand-written fake — NSubstitute can't proxy IObjectPool<T> with self-referential
+		// generic args on Mono. See Tests/AGENTS.md §4.
+		private class FakeObjectPool<T> : IObjectPool<T> where T : class
+		{
+			public int DisposeCount;
+
+			public T SampleEntity => null;
+			public IReadOnlyList<T> SpawnedReadOnly => System.Array.Empty<T>();
+
+			public void Dispose() { DisposeCount++; }
+			public void Dispose(bool disposeSampleEntity) { DisposeCount++; }
+
+			public bool IsSpawned(System.Func<T, bool> conditionCheck) => false;
+			public void Reset(uint initSize, T sampleEntity) { }
+			public T Spawn() => null;
+			public T Spawn<TData>(TData data) => null;
+			public bool Despawn(bool onlyFirst, System.Func<T, bool> entityGetter) => false;
+			public bool Despawn(T entity) => false;
+			public List<T> Clear() => new List<T>();
+			public void DespawnAll() { }
+		}
+
 		[SetUp]
 		public void Init()
 		{
@@ -38,6 +60,12 @@ namespace GameLoversEditor.Services.Tests
 			_pool = new ObjectPool<IMockPoolableEntity>(0, () => new MockPoolableEntity());
 			
 			_poolService.AddPool(_pool);
+		}
+
+		[TearDown]
+		public void Dispose()
+		{
+			_poolService.Dispose();
 		}
 
 		[Test]
@@ -153,6 +181,24 @@ namespace GameLoversEditor.Services.Tests
 			_poolService.Dispose<IMockPoolableEntity>(disposeSampleEntity: false);
 
 			Assert.IsFalse(_poolService.TryGetPool<IMockPoolableEntity>(out _));
+		}
+
+		[Test]
+		public void Dispose_DisposesAllRegisteredPools()
+		{
+			var fakeA = new FakeObjectPool<IMockPoolableEntity>();
+			var fakeB = new FakeObjectPool<IMockDataEntity>();
+
+			var service = new PoolService();
+			service.AddPool<IMockPoolableEntity>(fakeA);
+			service.AddPool<IMockDataEntity>(fakeB);
+
+			service.Dispose();
+
+			Assert.AreEqual(1, fakeA.DisposeCount);
+			Assert.AreEqual(1, fakeB.DisposeCount);
+			Assert.IsFalse(service.TryGetPool<IMockPoolableEntity>(out _));
+			Assert.IsFalse(service.TryGetPool<IMockDataEntity>(out _));
 		}
 	}
 }

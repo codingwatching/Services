@@ -304,5 +304,23 @@ namespace GameLoversEditor.Services.Tests
 
 			yield return null;
 		}
+
+		[UnityTest]
+		public IEnumerator AsyncCoroutineDataSetter_AfterStart_UpdatesPayload()
+		{
+			const int initialValue = 5;
+			const int mutatedValue = 99;
+			int observed = 0;
+
+			var asyncCoroutine = _coroutineService.StartAsyncCoroutine(TestCoroutine(0), initialValue);
+			asyncCoroutine.OnComplete(payload => observed = payload);
+
+			asyncCoroutine.Data = mutatedValue;
+
+			yield return asyncCoroutine.Coroutine;
+
+			Assert.AreEqual(mutatedValue, observed);
+			Assert.AreEqual(mutatedValue, asyncCoroutine.Data);
+		}
 	}
 }

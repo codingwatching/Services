@@ -8,6 +8,28 @@ namespace GameLoversEditor.Services.Tests
 	[TestFixture]
 	public class AddressableIdsEditorSettingsTest
 	{
+		// AddressableIdsEditorSettings is a ScriptableSingleton persisted to ProjectSettings/;
+		// snapshot + restore so test mutations don't leak into the user's project.
+		private string _originalScriptFilename;
+		private string _originalNamespace;
+		private string _originalAddressableLabel;
+
+		[SetUp]
+		public void SaveOriginalSettings()
+		{
+			_originalScriptFilename = AddressableIdsEditorSettings.instance.ScriptFilename;
+			_originalNamespace = AddressableIdsEditorSettings.instance.Namespace;
+			_originalAddressableLabel = AddressableIdsEditorSettings.instance.AddressableLabel;
+		}
+
+		[TearDown]
+		public void RestoreOriginalSettings()
+		{
+			AddressableIdsEditorSettings.instance.ScriptFilename = _originalScriptFilename;
+			AddressableIdsEditorSettings.instance.Namespace = _originalNamespace;
+			AddressableIdsEditorSettings.instance.AddressableLabel = _originalAddressableLabel;
+		}
+
 		// ---- IsValidIdentifier ----
 
 		[Test]
@@ -115,6 +137,44 @@ namespace GameLoversEditor.Services.Tests
 		{
 			Assert.IsTrue(AddressableIdsEditorSettings.IsValidNamespace("Com.GameLovers.Game.Ids", out var error));
 			Assert.IsNull(error);
+		}
+
+		// ---- Setter normalization ----
+
+		[Test]
+		public void ScriptFilename_SetterNormalizesAndPersists()
+		{
+			AddressableIdsEditorSettings.instance.ScriptFilename = "  CustomFilename  ";
+
+			Assert.AreEqual("CustomFilename", AddressableIdsEditorSettings.instance.ScriptFilename);
+
+			AddressableIdsEditorSettings.instance.ScriptFilename = null;
+
+			Assert.AreEqual("AddressableId", AddressableIdsEditorSettings.instance.ScriptFilename);
+		}
+
+		[Test]
+		public void Namespace_SetterNormalizesAndPersists()
+		{
+			AddressableIdsEditorSettings.instance.Namespace = "  Custom.Namespace  ";
+
+			Assert.AreEqual("Custom.Namespace", AddressableIdsEditorSettings.instance.Namespace);
+
+			AddressableIdsEditorSettings.instance.Namespace = null;
+
+			Assert.AreEqual("Game.Ids", AddressableIdsEditorSettings.instance.Namespace);
+		}
+
+		[Test]
+		public void AddressableLabel_SetterNormalizesAndPersists()
+		{
+			AddressableIdsEditorSettings.instance.AddressableLabel = "  custom-label  ";
+
+			Assert.AreEqual("custom-label", AddressableIdsEditorSettings.instance.AddressableLabel);
+
+			AddressableIdsEditorSettings.instance.AddressableLabel = null;
+
+			Assert.AreEqual(string.Empty, AddressableIdsEditorSettings.instance.AddressableLabel);
 		}
 	}
 }
