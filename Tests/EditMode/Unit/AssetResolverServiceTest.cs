@@ -167,5 +167,55 @@ namespace GameLoversEditor.Services.Tests
 
 			Assert.IsNotNull(caught);
 		}
+
+		[Test]
+		public async System.Threading.Tasks.Task RequestAsset_ThreeParamWithData_UnknownId_ThrowsMissingMember()
+		{
+			MissingMemberException caught = null;
+			try
+			{
+				await _service.RequestAsset<int, Sprite, string>(99, "payload");
+			}
+			catch (MissingMemberException ex)
+			{
+				caught = ex;
+			}
+
+			Assert.IsNotNull(caught);
+		}
+
+		[Test]
+		public async System.Threading.Tasks.Task LoadAllAssets_UnknownAssetType_ThrowsMissingMember()
+		{
+			MissingMemberException caught = null;
+			try
+			{
+				await _service.LoadAllAssets<int, Sprite>();
+			}
+			catch (MissingMemberException ex)
+			{
+				caught = ex;
+			}
+
+			Assert.IsNotNull(caught);
+		}
+
+		[Test]
+		public async System.Threading.Tasks.Task UnloadSceneAsync_UnknownId_LogsWarningAndCompletes()
+		{
+			LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(".*"));
+
+			Exception caught = null;
+			try
+			{
+				await _service.UnloadSceneAsync(123);
+			}
+			catch (Exception ex)
+			{
+				caught = ex;
+			}
+
+			Assert.IsNull(caught);
+		}
 	}
 }

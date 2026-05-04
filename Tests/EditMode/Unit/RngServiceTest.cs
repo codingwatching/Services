@@ -227,5 +227,44 @@ namespace GameLoversEditor.Services.Tests
 			Assert.Throws<IndexOutOfRangeException>(() => RngService.CopyRngState(new int[10]));
 			Assert.Throws<IndexOutOfRangeException>(() => RngService.CopyRngState(new int[55]));
 		}
+
+		[Test]
+		public void Restore_StaticOverload_AgreesWithIterativeNextOnFreshSeed()
+		{
+			const int count = 7;
+
+			var staticState = RngService.Restore(count, Seed);
+
+			var freshData = RngService.CreateRngData(Seed);
+			var freshService = new RngService(freshData);
+			for (var i = 0; i < count; i++)
+			{
+				_ = freshService.Next;
+			}
+
+			Assert.AreEqual(56, staticState.Length);
+			Assert.AreEqual(freshData.State, staticState);
+		}
+
+		[Test]
+		public void Range_IntStaticOverload_StaysWithinBoundsAndAdvancesState()
+		{
+			const int min = -50;
+			const int max = 50;
+			var state = RngService.CopyRngState(_rngData.State);
+			var stateBefore = RngService.CopyRngState(state);
+			var seenValues = new System.Collections.Generic.HashSet<int>();
+
+			for (var i = 0; i < 50; i++)
+			{
+				var value = RngService.Range(min, max, state, false);
+				Assert.GreaterOrEqual(value, min);
+				Assert.Less(value, max);
+				seenValues.Add(value);
+			}
+
+			Assert.Greater(seenValues.Count, 1);
+			Assert.AreNotEqual(stateBefore, state);
+		}
 	}
 }

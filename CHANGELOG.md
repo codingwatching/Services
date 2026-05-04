@@ -4,6 +4,20 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-05-04
+
+**New tests** (`unity-tests-audit` Thorough run; closes prior 2026-04-27 audit's deferred P0 plus 5 fresh P1 boundary gaps):
+- `RngServiceTest.Restore_StaticOverload_AgreesWithIterativeNextOnFreshSeed` — asserts the static `Restore(count, seed)` overload's resulting `int[]` matches `freshData.State` after N iterative `Next` calls on a `CreateRngData(seed)`-constructed service. Closes the 2026-04-27 Referee §4.1a deferred classification.
+- `RngServiceTest.Range_IntStaticOverload_StaysWithinBoundsAndAdvancesState` — covers `RngService.Range(int, int, int[], bool)` static (which routes to the `floatP` overload at `:222`) over 50 draws on `[-50, 50)`; asserts in-range, state-mutation observable, and a non-degenerate distribution.
+- `AssetResolverServiceTest.RequestAsset_ThreeParamWithData_UnknownId_ThrowsMissingMember` — boundary throw on the 3-param `IAssetResolverService.RequestAsset<TId, TAsset, TData>` interface declaration; the throw guard at `Runtime/AssetResolverService.cs:234` precedes Addressables, EditMode-safe.
+- `AssetResolverServiceTest.LoadAllAssets_UnknownAssetType_ThrowsMissingMember` — boundary throw on `LoadAllAssets<TId, TAsset>` when no `AddAssets`/`AddConfigs` registration matches; throw at impl `:182` precedes Addressables.
+- `AssetResolverServiceTest.UnloadSceneAsync_UnknownId_LogsWarningAndCompletes` — asymmetric boundary path: unknown-id is `Debug.LogWarning + early return` (NOT a throw) per impl `:271`; uses `LogAssert.Expect(LogType.Warning, ...)` and asserts the awaited `UniTask` completes without throwing.
+- `TickServiceTest.Unsubscribe_UmbrellaOverload_RemovesActionFromAllThreeUpdateLists` — covers the `ITickService.Unsubscribe(Action<float>)` umbrella overload that routes to `UnsubscribeOnUpdate` + `UnsubscribeOnFixedUpdate` + `UnsubscribeOnLateUpdate`.
+
+**Changed**:
+- `Tests/AGENTS.md` §8 extended with a new **"Authorized reflection sites (storage-assertion exception)"** subsection. Setter-storage assertions via `BindingFlags.NonPublic | Instance` are now explicitly authorized when (a) the side-effect requires Addressables / other unfabricable EditMode harness state to verify through the public API, and (b) the test is a single setter-storage check (behaviour-verification still requires an `InternalsVisibleTo`-backed accessor). First authorized site: `AssetResolverServiceTest.AddDebugConfigs_StoresAllProvided` reading `AssetResolverService._errorMaterial`.
+- `.audit-history.md` is now `.gitignore`-d at the package root (per the new repo-wide convention recorded in the host `Frameworks/AGENTS.md` §2). Local audit state is no longer committed.
+
 ## [2.0.0] - 2026-04-26
 
 **New**:
