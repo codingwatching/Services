@@ -4,6 +4,18 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-05-20
+
+**New**:
+- `VersionServices` now auto-bootstraps via `[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]`, populating version metadata before any scene `Awake` callback and before vendor-SDK `SubsystemRegistration` callbacks that read it. Consumers no longer need to call `LoadVersionData()` / `LoadVersionDataAsync()` explicitly for the default flow.
+
+**Changed**:
+- Property getters (`VersionInternal`, `Branch`, `Commit`, `BuildNumber`) now lazy-load via a new private `EnsureLoaded()` on first access if the auto-bootstrap hook has not yet fired — protects against undefined ordering between sibling assemblies' `[RuntimeInitializeOnLoadMethod]` callbacks at the same phase.
+- Removed the private `IsLoaded()` helper (replaced by `EnsureLoaded()` invoked from each property getter).
+
+**Docs**:
+- `docs/version-services.md` rewritten around the new auto-bootstrap contract: the recommended usage no longer includes any explicit load call, the lazy-load fallback is documented, and the Error Reference table now describes the fallback behaviour (no exception is raised).
+
 ## [2.0.2] - 2026-05-20
 
 **Fixed**:

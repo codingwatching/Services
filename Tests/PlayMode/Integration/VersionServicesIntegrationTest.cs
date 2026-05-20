@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Reflection;
 using GameLovers.Services;
@@ -26,12 +25,16 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest, Order(1)]
-		public IEnumerator AccessBeforeLoad_Throws()
+		public IEnumerator AccessBeforeLoad_AutoLoads()
 		{
-			Assert.Throws<Exception>(() => { var _ = VersionServices.VersionInternal; });
-			Assert.Throws<Exception>(() => { var _ = VersionServices.Branch; });
-			Assert.Throws<Exception>(() => { var _ = VersionServices.Commit; });
-			Assert.Throws<Exception>(() => { var _ = VersionServices.BuildNumber; });
+			Assert.IsFalse((bool)LoadedField.GetValue(null), "Precondition: SetUp resets _loaded to false");
+
+			Assert.DoesNotThrow(() => { var _ = VersionServices.VersionInternal; });
+			Assert.DoesNotThrow(() => { var _ = VersionServices.Branch; });
+			Assert.DoesNotThrow(() => { var _ = VersionServices.Commit; });
+			Assert.DoesNotThrow(() => { var _ = VersionServices.BuildNumber; });
+
+			Assert.IsTrue((bool)LoadedField.GetValue(null), "Accessor should auto-trigger LoadVersionData via EnsureLoaded");
 
 			yield return null;
 		}
