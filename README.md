@@ -232,13 +232,15 @@ cmd.ExecuteCommand(new LevelUpCommand());
 ### Version Services
 
 ```csharp
-// Pick one of:
-VersionServices.LoadVersionData();          // sync — recommended for tiny version-data.txt payloads
-await VersionServices.LoadVersionDataAsync(); // async — use if VersionData embeds large blobs
-
+// No setup call needed — version metadata auto-loads at SubsystemRegistration,
+// with a lazy-load fallback on first property access.
 string branch = VersionServices.Branch;
 string commit = VersionServices.Commit;
 string ext    = VersionServices.VersionExternal; // always safe, no load needed
+
+// Optional explicit pre-warm (idempotent — no-ops if already loaded):
+// VersionServices.LoadVersionData();              // sync, recommended default
+// await VersionServices.LoadVersionDataAsync();   // async — only useful for large VersionData blobs
 ```
 
 ### Asset Loading

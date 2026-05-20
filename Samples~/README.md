@@ -112,7 +112,7 @@ These are the mistakes most likely to bite first-time users — every sample bel
 - **`DataService` keys `PlayerPrefs` by `typeof(T).Name`.** Two types named `PlayerData` in different namespaces will collide.
 - **`PoolService.AddPool<T>` throws on duplicate registrations.** One pool per type. Call `RemovePool<T>()` first if you need to re-register.
 - **`AssetResolverService.RequestAsset` / `LoadSceneAsync` throw `MissingMemberException` until you call `AddConfigs` / `AddAssets`.** Sample 2 demonstrates the registration step.
-- **`VersionServices.VersionInternal` / `Branch` / `Commit` / `BuildNumber` throw until `LoadVersionDataAsync()` completes.** `VersionExternal` is always safe (reads `Application.version`).
+- **`VersionServices` auto-bootstraps at `SubsystemRegistration` + lazy-loads on first property access.** `VersionInternal` / `Branch` / `Commit` / `BuildNumber` are safe to read at any time; missing `version-data.txt` returns `Application.version` / `string.Empty` and logs an error. `LoadVersionData()` / `LoadVersionDataAsync()` remain available for explicit pre-warming.
 - **`TickService` and `CoroutineService` each create a `DontDestroyOnLoad` GameObject.** Always `Dispose()` them on teardown, otherwise the host objects accumulate across domain reloads. The playground bootstrap uses `MainInstaller.CleanDispose<T>()` for this.
 - **`IAsyncCoroutine.StopCoroutine(triggerOnComplete)`** — the parameter is currently not respected. The completion callback fires regardless. Do not rely on cancellation-without-callback semantics.
 

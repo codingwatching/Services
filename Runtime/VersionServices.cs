@@ -31,35 +31,89 @@ namespace GameLovers.Services
 		public static string VersionExternal => Application.version;
 
 		/// <summary>
-		/// Internal version (M.m.p-b.branch.commit)
+		/// Internal version (M.m.p-b.branch.commit). Lazy-loads on first access if the
+		/// <see cref="Bootstrap"/> hook has not yet fired (see remarks on <see cref="Bootstrap"/>);
+		/// falls back to <see cref="Application.version"/> when the <c>version-data</c> Resource is
+		/// missing or fails to parse.
 		/// </summary>
-		public static string VersionInternal => IsLoaded()
-			? FormatInternalVersion(_versionData)
-			: Application.version;
+		public static string VersionInternal
+		{
+			get
+			{
+				EnsureLoaded();
+				return _loaded ? FormatInternalVersion(_versionData) : Application.version;
+			}
+		}
 
 		/// <summary>
-		/// Name of the git branch that this app was built from.
+		/// Name of the git branch that this app was built from. Lazy-loads on first access; returns
+		/// <see cref="string.Empty"/> when the <c>version-data</c> Resource is missing.
 		/// </summary>
-		public static string Branch => IsLoaded() ? _versionData.BranchName : string.Empty;
+		public static string Branch
+		{
+			get
+			{
+				EnsureLoaded();
+				return _loaded ? _versionData.BranchName : string.Empty;
+			}
+		}
 
 		/// <summary>
-		/// Short hash of the commit this app was built from.
+		/// Short hash of the commit this app was built from. Lazy-loads on first access; returns
+		/// <see cref="string.Empty"/> when the <c>version-data</c> Resource is missing.
 		/// </summary>
-		public static string Commit => IsLoaded() ? _versionData.CommitHash : string.Empty;
+		public static string Commit
+		{
+			get
+			{
+				EnsureLoaded();
+				return _loaded ? _versionData.CommitHash : string.Empty;
+			}
+		}
 
 		/// <summary>
-		/// Build number for this build of the app.
+		/// Build number for this build of the app. Lazy-loads on first access; returns
+		/// <see cref="string.Empty"/> when the <c>version-data</c> Resource is missing.
 		/// </summary>
-		public static string BuildNumber => IsLoaded() ? _versionData.BuildNumber : string.Empty;
+		public static string BuildNumber
+		{
+			get
+			{
+				EnsureLoaded();
+				return _loaded ? _versionData.BuildNumber : string.Empty;
+			}
+		}
 
 		private static VersionData _versionData;
 		private static bool _loaded;
 
 		/// <summary>
-		/// Load the internal version string from resources synchronously. Should be called once
-		/// when the app is started. Intended for tiny payloads (the default <c>version-data.txt</c>
-		/// is a few hundred bytes); use <see cref="LoadVersionDataAsync"/> if <see cref="VersionData"/>
-		/// is extended with large blobs that would noticeably stall the main thread.
+		/// Auto-bootstrap hook: populates version metadata at the earliest runtime phase Unity
+		/// exposes, before any scene <c>Awake</c> and before vendor SDK <c>SubsystemRegistration</c>
+		/// callbacks that read <see cref="VersionInternal"/> / <see cref="BuildNumber"/> (e.g.
+		/// Sentry's Option Config Script). Consumers no longer need to call
+		/// <see cref="LoadVersionData"/> / <see cref="LoadVersionDataAsync"/> explicitly for the
+		/// default flow.
+		/// </summary>
+		/// <remarks>
+		/// Ordering between <see cref="RuntimeInitializeLoadType.SubsystemRegistration"/> callbacks
+		/// across assemblies is undefined; if a sibling SDK's hook fires before this one, the
+		/// property accessors' lazy-load fallback (<see cref="EnsureLoaded"/>) covers the race.
+		/// </remarks>
+		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+		private static void Bootstrap()
+		{
+			LoadVersionData();
+		}
+
+		/// <summary>
+		/// Load the internal version string from resources synchronously. Auto-invoked by
+		/// <see cref="Bootstrap"/> at <see cref="RuntimeInitializeLoadType.SubsystemRegistration"/>;
+		/// safe to call directly for explicit pre-warming. Idempotent — short-circuits via
+		/// <see cref="EnsureLoaded"/>'s caller when version data is already loaded. Intended for
+		/// tiny payloads (the default <c>version-data.txt</c> is a few hundred bytes); use
+		/// <see cref="LoadVersionDataAsync"/> if <see cref="VersionData"/> is extended with large
+		/// blobs that would noticeably stall the main thread.
 		/// </summary>
 		public static void LoadVersionData()
 		{
@@ -77,8 +131,12 @@ namespace GameLovers.Services
 		}
 
 		/// <summary>
-		/// Load the internal version string from resources async. Should be called once when the
-		/// app is started.
+		/// Load the internal version string from resources async. The synchronous
+		/// <see cref="LoadVersionData"/> is auto-invoked at
+		/// <see cref="RuntimeInitializeLoadType.SubsystemRegistration"/>, so callers only need this
+		/// async variant when explicitly pre-warming off the main thread or when
+		/// <see cref="VersionData"/> has been extended with large blobs that would noticeably stall
+		/// the main thread.
 		/// </summary>
 		public static async Task LoadVersionDataAsync()
 		{
@@ -160,9 +218,11 @@ namespace GameLovers.Services
 			return version;
 		}
 
-		private static bool IsLoaded()
+		private static void EnsureLoaded()
 		{
-			return _loaded ? true : throw new Exception("Version Data not loaded.");
+			if (_loaded) return;
+
+			LoadVersionData();
 		}
 	}
 }
