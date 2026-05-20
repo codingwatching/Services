@@ -4,9 +4,9 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [2.0.1] - 2026-05-04
+## [2.0.1] - 2026-05-20
 
-**New** 
+**New**
 - Added new test suite for more rebust code coverage
 - Added `VersionServices.LoadVersionData()` — synchronous sibling of `LoadVersionDataAsync()` for consumers who want to populate version metadata at boot without an `await`. Both methods now funnel into a shared private `ApplyTextAsset` helper, so behaviour is identical. Sync is the recommended default for the shipping `version-data.txt` (a few hundred bytes); async remains available for cases where `VersionData` is extended with large embedded blobs. Covered by `Tests/EditMode/Unit/VersionServicesSyncLoadTest.cs`.
 
@@ -28,8 +28,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Added `AssetResolverService` (implements `IAssetResolverService` / `IAssetAdderService`) to `Runtime/` root (ns `GameLovers.Services`)
 - Added Editor/AssetsImporter/: `AssetsImporter`, `AssetsToolImporter`, `AssetConfigsImporter`, `AddressableIdsGenerator`, `AddressablesIdGeneratorSettings` (ns `GameLovers.Services.AssetsImporter.Editor`)
 - Added importable **Samples** under `Samples~/` (importable via Unity Package Manager > GameLovers Services > Samples).
-  - **Services Playground** — single-scene, zero-setup walk-through that wires every foundation service via `MainInstaller` and exercises 10 of 13 Services Explorer tabs end-to-end. 
-  - **Asset Resolver** — focused demo of `AssetResolverService` end-to-end (`AddConfigs` / `RequestAsset` / `UnloadAssets`) with `SpriteConfigs : AssetConfigsScriptableObject<SpriteId, Sprite>`. Drives the three Services Explorer tabs the Playground does not cover (Asset Resolver, Assets Importer, Addressable Ids). 
+  - **Services Playground** — single-scene, zero-setup walk-through that wires every foundation service via `MainInstaller` and exercises 10 of 13 Services Explorer tabs end-to-end.
+  - **Asset Resolver** — focused demo of `AssetResolverService` end-to-end (`AddConfigs` / `RequestAsset` / `UnloadAssets`) with `SpriteConfigs : AssetConfigsScriptableObject<SpriteId, Sprite>`. Drives the three Services Explorer tabs the Playground does not cover (Asset Resolver, Assets Importer, Addressable Ids).
 
 **Changed**:
 - Addressable Ids generator and Assets Importer settings moved from `Assets/*.asset` ScriptableObjects to `ProjectSettings/` ScriptableSingletons (mirrors `VersioningEditorSettings`).
@@ -50,7 +50,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `AddressablesAssetLoader.UnloadAsset` no longer calls `GC.Collect()`, `GC.WaitForPendingFinalizers()`, or `Resources.UnloadUnusedAssets()`. The method now only decrements the Addressables reference count. The old implementation caused PlayMode Test Runner crashes on macOS and O(total-assets-in-memory) main-thread stalls per per-asset release. Callers that need memory reclamation should invoke `Resources.UnloadUnusedAssets()` themselves at appropriate moments (scene transitions, boot, memory-pressure events); Unity also runs an unused-assets sweep automatically on `LoadSceneMode.Single` scene loads.
 - Corrected `IAssetLoader.UnloadAsset` XML documentation: removed the incorrect "will also destroy GameObject instances" claim — `Addressables.Release(gameObject)` does not destroy the instance; callers must `Object.Destroy` it separately.
 - `IAsyncCoroutine.StopCoroutine(bool triggerOnComplete)` now honors its `triggerOnComplete` parameter and flips `IsCompleted` to `true` and `IsRunning` to `false` after stopping. The previous implementation always invoked `OnComplete` callbacks regardless of the flag and left state flags unchanged, so consumers could not distinguish a stopped coroutine from a running one and `triggerOnComplete: false` was silently ignored.
-- `GameObjectPool.Dispose()` and `GameObjectPool<T>.Dispose()` now skip pooled entries whose underlying `GameObject` has already been destroyed by an external owner (e.g. a parent GameObject was destroyed while pooled instances were still reparented under it via `DespawnToSampleParent`). 
+- `GameObjectPool.Dispose()` and `GameObjectPool<T>.Dispose()` now skip pooled entries whose underlying `GameObject` has already been destroyed by an external owner (e.g. a parent GameObject was destroyed while pooled instances were still reparented under it via `DespawnToSampleParent`).
 
 **Breaking Changes** — see `MIGRATION.md` for details:
 - Pool types moved from `GameLovers.Services` to `GameLovers.Services.Pooling` (`IPoolService`, `IObjectPool`, `IObjectPool<T>`, `ObjectPool<T>`, `ObjectPoolBase<T>`, `GameObjectPool`, `GameObjectPool<T>`, `IPoolEntitySpawn`, `IPoolEntitySpawn<T>`, `IPoolEntityDespawn`, `IPoolEntityObject<T>`). `PoolService` concrete class remains in `GameLovers.Services`.
@@ -80,7 +80,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 **Fixed**:
 - Fixed the *README.md* file to now follow best practices in OSS standards for Unity's package library projects
 - Fixed linter warnings in *VersionServices.cs* (redundant field initialization, unused lambda parameter, member shadowing)
-- Fixed *GameObjectPool* not invoking *IPoolEntitySpawn.OnSpawn()* and *IPoolEntityDespawn.OnDespawn()* on components attached to spawned GameObjects. 
+- Fixed *GameObjectPool* not invoking *IPoolEntitySpawn.OnSpawn()* and *IPoolEntityDespawn.OnDespawn()* on components attached to spawned GameObjects.
 
 ## [0.15.1] - 2025-09-24
 
@@ -93,7 +93,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Added *StartDelayCall* method to *ICoroutineService* to allow deferred methods to be safely executed within the bounds of a Unity Coroutine
 - Added the possibility to know the current state of an *IAsyncCoroutine*
 - Added the access to the Sample Entity used to generete new entites within an *IObjectPool<T>* and destroy it when disposing the object pool
-- Added the possibility to reset an *IObjectPool<T>* to a new state 
+- Added the possibility to reset an *IObjectPool<T>* to a new state
 
 ## [0.14.1] - 2024-11-30
 
@@ -228,7 +228,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 **Changed**:
 - Renamed *IDataWriter* and it's *FlushData* methods to *IDataSaver* & *SaveData* respectively to match with it's execution logic scope
-- Moved the *AddData* to the *IDataService* to allow the *IDataSaver* have the single responsibility of saving data into disk  
+- Moved the *AddData* to the *IDataService* to allow the *IDataSaver* have the single responsibility of saving data into disk
 
 ## [0.4.1] - 2020-07-09
 
@@ -252,7 +252,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Now the *MainInstaller* checks the object binding relationship in compile time
 - Improved the *ObjectPools* helper classes with a now static global instatiator for game objects.
 - Now the *PoolService* is only a service container for objects pools and no longer creates/initializes new pools.
-- Removed *Pool.Clear* functionality. Use *DespawnAll* or delete the pool instead 
+- Removed *Pool.Clear* functionality. Use *DespawnAll* or delete the pool instead
 
 **Fixed**:
 - The *CoroutineService* no longer fails on null coroutines
