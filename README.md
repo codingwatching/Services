@@ -232,10 +232,13 @@ cmd.ExecuteCommand(new LevelUpCommand());
 ### Version Services
 
 ```csharp
-await VersionServices.LoadVersionDataAsync();
+// Pick one of:
+VersionServices.LoadVersionData();          // sync — recommended for tiny version-data.txt payloads
+await VersionServices.LoadVersionDataAsync(); // async — use if VersionData embeds large blobs
+
 string branch = VersionServices.Branch;
 string commit = VersionServices.Commit;
-string ext    = VersionServices.VersionExternal; // always safe, no await needed
+string ext    = VersionServices.VersionExternal; // always safe, no load needed
 ```
 
 ### Asset Loading

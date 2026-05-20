@@ -29,6 +29,16 @@ namespace GameLoversEditor.Services.Tests
 			}
 		}
 
+		private class ServerCommandMockup : IGameServerCommand<IGameLogicMockup>
+		{
+			public int Payload;
+
+			public void ExecuteLogic(IGameLogicMockup gameLogic)
+			{
+				gameLogic.CallMockup(Payload);
+			}
+		}
+
 		[SetUp]
 		public void Init()
 		{
@@ -45,6 +55,17 @@ namespace GameLoversEditor.Services.Tests
 			_commandService.ExecuteCommand(command);
 			
 			_gameLogicMockup.Received().CallMockup(Arg.Is(payload));
+		}
+
+		[Test]
+		public void ServerCommand_ExecuteLogic_InvokedWithGameLogic()
+		{
+			var payload = 7;
+			IGameServerCommand<IGameLogicMockup> command = new ServerCommandMockup { Payload = payload };
+
+			command.ExecuteLogic(_gameLogicMockup);
+
+			_gameLogicMockup.Received(1).CallMockup(Arg.Is(payload));
 		}
 	}
 }

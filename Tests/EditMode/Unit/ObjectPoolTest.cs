@@ -221,5 +221,28 @@ namespace GameLoversEditor.Services.Tests
 			Assert.AreEqual(0, _pool.SpawnedReadOnly.Count);
 			Assert.AreSame(newSample, _pool.SampleEntity);
 		}
+
+		[Test]
+		public void ObjectPool_FuncOnlyCtor_UsesProvidedFactory()
+		{
+			var invocations = 0;
+			IMockEntity Factory()
+			{
+				invocations++;
+				return Substitute.For<IMockEntity>();
+			}
+
+			const uint initSize = 3;
+			var pool = new ObjectPool<IMockEntity>(initSize, Factory);
+
+			Assert.AreEqual((int)initSize + 1, invocations);
+
+			pool.Spawn();
+			pool.Spawn();
+			pool.Spawn();
+
+			Assert.AreEqual((int)initSize + 1, invocations);
+			Assert.AreEqual(3, pool.SpawnedReadOnly.Count);
+		}
 	}
 }

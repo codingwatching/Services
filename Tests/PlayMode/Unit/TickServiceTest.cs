@@ -320,6 +320,31 @@ namespace GameLoversEditor.Services.Tests
 			Assert.Greater(sub2.CallCount, 0);
 		}
 
+		[UnityTest]
+		public IEnumerator Unsubscribe_UmbrellaOverload_RemovesActionFromAllThreeUpdateLists()
+		{
+			int callCount = 0;
+			System.Action<float> action = dt => callCount++;
+
+			_tickService.SubscribeOnUpdate(action);
+			_tickService.SubscribeOnFixedUpdate(action);
+			_tickService.SubscribeOnLateUpdate(action);
+
+			yield return null;
+			yield return new WaitForFixedUpdate();
+			Assert.Greater(callCount, 0);
+
+			_tickService.Unsubscribe(action);
+			int countAtUnsubscribe = callCount;
+
+			yield return null;
+			yield return new WaitForFixedUpdate();
+			yield return null;
+			yield return new WaitForFixedUpdate();
+
+			Assert.AreEqual(countAtUnsubscribe, callCount);
+		}
+
 		[Test]
 		public void MultipleInstances_CreateMultipleGameObjects()
 		{

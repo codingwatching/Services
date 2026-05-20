@@ -16,6 +16,8 @@ namespace GameLoversEditor.Services.Tests
 	[TestFixture]
 	public class AssetResolverServiceTest
 	{
+		private class TestSpriteConfigs : AssetConfigsScriptableObject<int, Sprite> { }
+
 		private AssetResolverService _service;
 
 		[SetUp]
@@ -134,8 +136,86 @@ namespace GameLoversEditor.Services.Tests
 			UnityEngine.Object.DestroyImmediate(so);
 		}
 
-		// Concrete ScriptableObject subclass for AssetConfigsScriptableObject<int, Sprite>
-		// Lives inside the test fixture so Unity can CreateInstance it from EditMode tests.
-		private class TestSpriteConfigs : AssetConfigsScriptableObject<int, Sprite> { }
+		[Test]
+		public async System.Threading.Tasks.Task RequestAsset_UnknownId_ThrowsMissingMember()
+		{
+			MissingMemberException caught = null;
+			try
+			{
+				await _service.RequestAsset<int, Sprite>(99);
+			}
+			catch (MissingMemberException ex)
+			{
+				caught = ex;
+			}
+
+			Assert.IsNotNull(caught);
+		}
+
+		[Test]
+		public async System.Threading.Tasks.Task LoadSceneAsync_UnknownId_ThrowsMissingMember()
+		{
+			MissingMemberException caught = null;
+			try
+			{
+				await _service.LoadSceneAsync(7);
+			}
+			catch (MissingMemberException ex)
+			{
+				caught = ex;
+			}
+
+			Assert.IsNotNull(caught);
+		}
+
+		[Test]
+		public async System.Threading.Tasks.Task RequestAsset_ThreeParamWithData_UnknownId_ThrowsMissingMember()
+		{
+			MissingMemberException caught = null;
+			try
+			{
+				await _service.RequestAsset<int, Sprite, string>(99, "payload");
+			}
+			catch (MissingMemberException ex)
+			{
+				caught = ex;
+			}
+
+			Assert.IsNotNull(caught);
+		}
+
+		[Test]
+		public async System.Threading.Tasks.Task LoadAllAssets_UnknownAssetType_ThrowsMissingMember()
+		{
+			MissingMemberException caught = null;
+			try
+			{
+				await _service.LoadAllAssets<int, Sprite>();
+			}
+			catch (MissingMemberException ex)
+			{
+				caught = ex;
+			}
+
+			Assert.IsNotNull(caught);
+		}
+
+		[Test]
+		public async System.Threading.Tasks.Task UnloadSceneAsync_UnknownId_LogsWarningAndCompletes()
+		{
+			LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(".*"));
+
+			Exception caught = null;
+			try
+			{
+				await _service.UnloadSceneAsync(123);
+			}
+			catch (Exception ex)
+			{
+				caught = ex;
+			}
+
+			Assert.IsNull(caught);
+		}
 	}
 }

@@ -67,6 +67,12 @@ Why both keys: `RunSettings.Instance` is a lazy-loaded singleton (`ResourcesLoad
 - Use `[Order(n)]` when tests must run in sequence (e.g., `VersionServicesIntegrationTest` resets static state, then loads, then reads).
 - Reset shared static state in `[SetUp]` (reflection into private fields is acceptable for static classes like `VersionServices`).
 
+### Authorized reflection sites (storage-assertion exception)
+Reflection on private state is also authorized when a setter has no observable readback path through the public API and exercising the side-effect would require a runtime environment the EditMode harness cannot provide (e.g., a partially-loaded `AssetReference`). In those cases, asserting the storage field directly via `BindingFlags.NonPublic | BindingFlags.Instance` is acceptable and preferable to a Red-testability skip. The test method MUST be a single setter-storage assertion (not a multi-step behavioural assertion); if behaviour is what you need to verify, refactor to expose an `internal` accessor under `InternalsVisibleTo` instead.
+
+Currently authorized:
+- `AssetResolverServiceTest.AddDebugConfigs_StoresAllProvided` — reads the private `AssetResolverService._errorMaterial` field to confirm `AddDebugConfigs` stored its argument. The fallback-material lookup path (`AssetResolverService.Convert<T>` at `Runtime/AssetResolverService.cs:474`) only fires when `!assetReference.IsDone`, which the EditMode harness cannot fabricate without a real Addressables catalog. Documented here per the Type B audit run on 2026-05-04 (Referee §4 missed-anti-pattern finding, parent picked option A).
+
 ## 9. Test Directory Layout
 
 | Directory | Contents |
