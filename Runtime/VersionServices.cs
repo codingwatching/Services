@@ -56,6 +56,27 @@ namespace GameLovers.Services
 		private static bool _loaded;
 
 		/// <summary>
+		/// Load the internal version string from resources synchronously. Should be called once
+		/// when the app is started. Intended for tiny payloads (the default <c>version-data.txt</c>
+		/// is a few hundred bytes); use <see cref="LoadVersionDataAsync"/> if <see cref="VersionData"/>
+		/// is extended with large blobs that would noticeably stall the main thread.
+		/// </summary>
+		public static void LoadVersionData()
+		{
+			try
+			{
+				var textAsset = Resources.Load<TextAsset>(VersionDataFilename);
+
+				ApplyTextAsset(textAsset, asyncContext: false);
+			}
+			catch (Exception e)
+			{
+				Debug.LogError($"Error loading version data: {e.Message}");
+				_loaded = false;
+			}
+		}
+
+		/// <summary>
 		/// Load the internal version string from resources async. Should be called once when the
 		/// app is started.
 		/// </summary>
@@ -70,23 +91,28 @@ namespace GameLovers.Services
 
 				var textAsset = await source.Task;
 
-				if (!textAsset)
-				{
-					Debug.LogError("Could not async load version data from Resources.");
-					_loaded = false;
-					return;
-				}
-
-				_versionData = JsonUtility.FromJson<VersionData>(textAsset.text);
-				_loaded = true;
-
-				Resources.UnloadAsset(textAsset);
+				ApplyTextAsset(textAsset, asyncContext: true);
 			}
 			catch (Exception e)
 			{
 				Debug.LogError($"Error loading version data: {e.Message}");
 				_loaded = false;
 			}
+		}
+
+		private static void ApplyTextAsset(TextAsset textAsset, bool asyncContext)
+		{
+			if (!textAsset)
+			{
+				Debug.LogError($"Could not {(asyncContext ? "async " : string.Empty)}load version data from Resources.");
+				_loaded = false;
+				return;
+			}
+
+			_versionData = JsonUtility.FromJson<VersionData>(textAsset.text);
+			_loaded = true;
+
+			Resources.UnloadAsset(textAsset);
 		}
 
 		/// <summary>

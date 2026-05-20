@@ -128,7 +128,7 @@ flowchart TD
 
 ### Build/Version Info
 `Runtime/VersionServices.cs`
-- Static class for `version-data` Resources metadata. `VersionExternal` is always safe; `VersionInternal`, `Branch`, `Commit`, and `BuildNumber` require successful `LoadVersionDataAsync()` first.
+- Static class for `version-data` Resources metadata. `VersionExternal` is always safe; `VersionInternal`, `Branch`, `Commit`, and `BuildNumber` require either `LoadVersionData()` (sync) or `LoadVersionDataAsync()` (async) to have completed successfully first.
 
 ## 3. Key Directories / Files
 
@@ -243,7 +243,8 @@ The concrete `PoolService` stays in `Runtime/` root under `GameLovers.Services` 
 - `VersionEditorUtils` writes `version-data.txt` on every domain reload (`[InitializeOnLoadMethod]`) and can be invoked by build pipelines. It uses git CLI; failures are handled gracefully.
 - The **write folder** is configurable per-project via `VersioningEditorSettings.instance.ResourcesFolderPath` (default `Assets/Configs/Resources`). Change it from the Versioning tab in the Services Explorer (browse + reset). The chosen folder must contain a `Resources` path segment so `Resources.Load<TextAsset>("version-data")` can locate the file at runtime.
 - `VersioningEditorSettings` persists to `ProjectSettings/VersioningEditorSettings.asset` (editor-only, not committed to version control by default).
-- `VersionExternal` is always safe (reads `Application.version` directly). `VersionInternal`, `Branch`, `Commit`, and `BuildNumber` throw `Exception("Version Data not loaded.")` if data has not been loaded — call `LoadVersionDataAsync()` early in boot.
+- `VersionExternal` is always safe (reads `Application.version` directly). `VersionInternal`, `Branch`, `Commit`, and `BuildNumber` throw `Exception("Version Data not loaded.")` if data has not been loaded — call `LoadVersionData()` (sync) or `LoadVersionDataAsync()` (async) early in boot.
+- **Sync vs async load**: `LoadVersionData()` uses `Resources.Load<TextAsset>` (synchronous, main-thread); `LoadVersionDataAsync()` uses `Resources.LoadAsync<TextAsset>` wrapped in a `TaskCompletionSource`. Both funnel into the private `ApplyTextAsset(TextAsset, bool asyncContext)` helper that parses JSON, flips `_loaded`, and calls `Resources.UnloadAsset`. Behaviour is identical apart from the wording in the failure log line (`"Could not async load …"` vs `"Could not load …"`). Sync is the recommended default for the shipping `version-data.txt` (a few hundred bytes); async is only worth the ceremony if `VersionData` is extended with large embedded blobs (e.g. a baked manifest) that would noticeably stall the main thread.
 - `VersionServices.IsOutdatedVersion(string)` requires a 3-part `Major.Minor.Patch` semver and throws `IndexOutOfRangeException` on any 1- or 2-part input — the parser unconditionally accesses `Split('.')[0..2]`. Consumers that compare against `Application.version` must ensure `ProjectSettings.bundleVersion` is 3-part (defaults to `0.1` / `1.0` for fresh projects, which will throw). Either bump `bundleVersion` to a 3-part value, guard with `parts.Length < 3` at the call site, or harden the method itself with a length guard. Tests calling this against the host editor's `Application.version` should `Assert.Inconclusive` on shorter strings rather than `Assert.Throws` — the throw is a real production bug surface, not a documented contract.
 
 ### Editor Introspection (InternalsVisibleTo)
