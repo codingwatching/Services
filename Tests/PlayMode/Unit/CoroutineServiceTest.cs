@@ -145,19 +145,19 @@ namespace GameLoversEditor.Services.Tests
 		[UnityTest]
 		public IEnumerator Dispose_DestroysHostGameObject()
 		{
-			var initialCount = Object.FindObjectsByType<CoroutineServiceMonoBehaviour>(FindObjectsSortMode.None).Length;
+			var initialCount = Object.FindObjectsByType<CoroutineServiceMonoBehaviour>().Length;
 			var service = new CoroutineService();
 
 			Assert.AreEqual(
 				initialCount + 1,
-				Object.FindObjectsByType<CoroutineServiceMonoBehaviour>(FindObjectsSortMode.None).Length);
+				Object.FindObjectsByType<CoroutineServiceMonoBehaviour>().Length);
 
 			service.Dispose();
 			yield return null;
 
 			Assert.AreEqual(
 				initialCount,
-				Object.FindObjectsByType<CoroutineServiceMonoBehaviour>(FindObjectsSortMode.None).Length);
+				Object.FindObjectsByType<CoroutineServiceMonoBehaviour>().Length);
 		}
 
 		[UnityTest]
