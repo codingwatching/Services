@@ -52,12 +52,21 @@ namespace GameLovers.Services.Scaffolders.Editor
 			var endAction = ScriptableObject.CreateInstance<ScriptNameEditAction>();
 			endAction.TemplatePath = templatePath;
 
+#if UNITY_6000_4_OR_NEWER
+			ProjectWindowUtil.StartNameEditingIfProjectWindowExists(
+				default,
+				endAction,
+				defaultName,
+				EditorGUIUtility.IconContent("cs Script Icon").image as Texture2D,
+				null);
+#else
 			ProjectWindowUtil.StartNameEditingIfProjectWindowExists(
 				0,
 				endAction,
 				defaultName,
 				EditorGUIUtility.IconContent("cs Script Icon").image as Texture2D,
 				null);
+#endif
 		}
 
 		private static string FindTemplatePath(string fileName)
@@ -92,15 +101,21 @@ namespace GameLovers.Services.Scaffolders.Editor
 			return null;
 		}
 
-		/// <summary>
-		/// Called by <see cref="ProjectWindowUtil"/> after the user confirms the file name.
-		/// Reads the template, replaces placeholders, and writes the final .cs file.
-		/// </summary>
-		private class ScriptNameEditAction : EndNameEditAction
+#if UNITY_6000_4_OR_NEWER
+		private class ScriptNameEditAction : AssetCreationEndAction
 		{
 			public string TemplatePath;
 
-			public override void Action(int instanceId, string pathName, string resourceFile)
+			public override void Action(EntityId entityId, string pathName, string resourceFile)
+			{
+				WriteScript(pathName);
+			}
+
+			public override void Cancelled(EntityId entityId, string pathName, string resourceFile)
+			{
+			}
+
+			private void WriteScript(string pathName)
 			{
 				var scriptName = Path.GetFileNameWithoutExtension(pathName);
 				var ns = DeriveNamespace(pathName);
@@ -115,10 +130,6 @@ namespace GameLovers.Services.Scaffolders.Editor
 
 				var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(pathName);
 				ProjectWindowUtil.ShowCreatedAsset(asset);
-			}
-
-			public override void Cancelled(int instanceId, string pathName, string resourceFile)
-			{
 			}
 
 			private static string DeriveNamespace(string assetPath)
@@ -163,5 +174,79 @@ namespace GameLovers.Services.Scaffolders.Editor
 				return nsBuilder.ToString();
 			}
 		}
+#else
+		private class ScriptNameEditAction : EndNameEditAction
+		{
+			public string TemplatePath;
+
+			public override void Action(int instanceId, string pathName, string resourceFile)
+			{
+				WriteScript(pathName);
+			}
+
+			public override void Cancelled(int instanceId, string pathName, string resourceFile)
+			{
+			}
+
+			private void WriteScript(string pathName)
+			{
+				var scriptName = Path.GetFileNameWithoutExtension(pathName);
+				var ns = DeriveNamespace(pathName);
+				var template = File.ReadAllText(TemplatePath, Encoding.UTF8);
+
+				var content = template
+					.Replace("$NAME$", scriptName)
+					.Replace("$NAMESPACE$", ns);
+
+				File.WriteAllText(pathName, content, Encoding.UTF8);
+				AssetDatabase.ImportAsset(pathName);
+
+				var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(pathName);
+				ProjectWindowUtil.ShowCreatedAsset(asset);
+			}
+
+			private static string DeriveNamespace(string assetPath)
+			{
+				var rootNamespace = EditorSettings.projectGenerationRootNamespace;
+
+				if (string.IsNullOrEmpty(rootNamespace))
+				{
+					rootNamespace = "Game";
+				}
+
+				var dir = Path.GetDirectoryName(assetPath);
+
+				if (string.IsNullOrEmpty(dir))
+				{
+					return rootNamespace;
+				}
+
+				dir = dir.Replace('\\', '/');
+
+				const string assetsPrefix = "Assets/";
+
+				if (dir.StartsWith(assetsPrefix, StringComparison.Ordinal))
+				{
+					dir = dir.Substring(assetsPrefix.Length);
+				}
+
+				var parts = dir.Split('/');
+				var nsBuilder = new StringBuilder(rootNamespace);
+
+				foreach (var part in parts)
+				{
+					if (string.IsNullOrEmpty(part))
+					{
+						continue;
+					}
+
+					nsBuilder.Append('.');
+					nsBuilder.Append(part);
+				}
+
+				return nsBuilder.ToString();
+			}
+		}
+#endif
 	}
 }

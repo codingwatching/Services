@@ -141,15 +141,15 @@ namespace GameLoversEditor.Services.Tests
 		[UnityTest]
 		public IEnumerator Dispose_DestroysGameObject()
 		{
-			var initialCount = Object.FindObjectsByType<TickServiceMonoBehaviour>(FindObjectsSortMode.None).Length;
+			var initialCount = Object.FindObjectsByType<TickServiceMonoBehaviour>().Length;
 			var tickService = new TickService();
 			
-			Assert.AreEqual(initialCount + 1, Object.FindObjectsByType<TickServiceMonoBehaviour>(FindObjectsSortMode.None).Length);
+			Assert.AreEqual(initialCount + 1, Object.FindObjectsByType<TickServiceMonoBehaviour>().Length);
 			
 			tickService.Dispose();
 			yield return null; // Allow Destroy to complete
 			
-			Assert.AreEqual(initialCount, Object.FindObjectsByType<TickServiceMonoBehaviour>(FindObjectsSortMode.None).Length);
+			Assert.AreEqual(initialCount, Object.FindObjectsByType<TickServiceMonoBehaviour>().Length);
 		}
 
 		[UnityTest]
@@ -367,7 +367,7 @@ namespace GameLoversEditor.Services.Tests
 			var service1 = new TickService();
 			var service2 = new TickService();
 			
-			var objects = Object.FindObjectsByType<TickServiceMonoBehaviour>(FindObjectsSortMode.None);
+			var objects = Object.FindObjectsByType<TickServiceMonoBehaviour>();
 			Assert.GreaterOrEqual(objects.Length, 2);
 			
 			service1.Dispose();
