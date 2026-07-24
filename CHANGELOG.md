@@ -6,12 +6,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [2.1.1] - 2026-07-04
 
-**Fixed**:
-- `ServicesScaffolders` adapts to Unity 6000.4+ `AssetCreationEndAction` / `EntityId` API (guarded by `UNITY_6000_4_OR_NEWER`; pre-6000.4 path unchanged).
-
 **Changed**:
 - PlayMode tests updated to parameterless `FindObjectsByType<T>()` overload (Unity 6 API).
 - Removed redundant `[Serializable]` from `AddressableConfig` (already implicitly serializable as a reference type in Unity YAML).
+
+**Fixed**:
+- `ServicesScaffolders` adapts to Unity 6000.4+ `AssetCreationEndAction` / `EntityId` API (guarded by `UNITY_6000_4_OR_NEWER`; pre-6000.4 path unchanged).
 
 ## [2.1.0] - 2026-05-20
 
