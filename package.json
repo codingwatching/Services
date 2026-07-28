@@ -2,7 +2,7 @@
   "name": "com.gamelovers.services",
   "displayName": "GameLovers Services",
   "author": "Miguel Tomas",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "unity": "6000.3",
   "license": "MIT",
   "description": "Foundation services for a Unity based project (DI-lite, messaging, ticking, coroutines, pooling, persistence, RNG, time, commands, versioning) plus Addressables-based asset loading and importing tooling.",
@@ -16,7 +16,7 @@
   "samples": [
     {
       "displayName": "Services Playground",
-      "description": "Zero-setup playground that wires every foundation service via MainInstaller and drives the Services Explorer (Installer, Versioning, Message Broker, Tick, Coroutine, Pool, Data, Time, RNG, Commands). Open the scene and press Play — the UI is built programmatically; no per-import wiring.",
+      "description": "Zero-setup playground that wires every foundation service via MainInstaller and drives the Services Explorer (Installer, Versioning, Message Broker, Tick, Coroutine, Pool, Data, Time, RNG, Commands). Open the scene and press Play — the UI ships as a hand-authored prefab (ServicesPlaygroundUI.prefab) with a driver script holding [SerializeField] references; no per-import wiring.",
       "path": "Samples~/ServicesPlayground"
     },
     {

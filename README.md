@@ -36,7 +36,7 @@ Building robust game architecture in Unity often leads to tightly coupled system
 ## System Requirements
 
 - **[Unity](https://unity.com/download)** 6000.0+ (Unity 6)
-- **[GameLovers GameData](https://github.com/CoderGamester/com.gamelovers.gamedata)** (v1.0.0) — automatically resolved
+- **[GameLovers GameData](https://github.com/CoderGamester/Unity-GameData)** (v1.0.0) — automatically resolved
 - **[Unity Addressables](https://docs.unity3d.com/Packages/com.unity.addressables@latest)** (≥ 1.21.20) — automatically resolved
 - **[UniTask](https://github.com/Cysharp/UniTask)** (≥ 2.5.10) — automatically resolved
 
@@ -51,14 +51,14 @@ Building robust game architecture in Unity often leads to tightly coupled system
 
 1. Open Unity Package Manager (`Window` → `Package Manager`)
 2. Click `+` → `Add package from git URL`
-3. Enter: `https://github.com/CoderGamester/com.gamelovers.services.git`
+3. Enter: `https://github.com/CoderGamester/Services.git`
 
 ### Via manifest.json
 
 ```json
 {
   "dependencies": {
-    "com.gamelovers.services": "https://github.com/CoderGamester/com.gamelovers.services.git"
+    "com.gamelovers.services": "https://github.com/CoderGamester/Services.git"
   }
 }
 ```
@@ -323,7 +323,7 @@ To import a sample: **Window > Package Manager > GameLovers Services > Samples >
 
 ## Contributing
 
-Contributions are welcome! See [GitHub Issues](https://github.com/CoderGamester/com.gamelovers.services/issues) to report bugs or request features. For development setup, architecture details, namespace conventions, and coding standards, see [AGENTS.md](AGENTS.md).
+Contributions are welcome! See [GitHub Issues](https://github.com/CoderGamester/Services/issues) to report bugs or request features. For development setup, architecture details, namespace conventions, and coding standards, see [AGENTS.md](AGENTS.md).
 
 ---
 
@@ -338,8 +338,8 @@ Contributions are welcome! See [GitHub Issues](https://github.com/CoderGamester/
 
 ## Support
 
-- **Issues**: [Report bugs or request features](https://github.com/CoderGamester/com.gamelovers.services/issues)
-- **Discussions**: [Ask questions and share ideas](https://github.com/CoderGamester/com.gamelovers.services/discussions)
+- **Issues**: [Report bugs or request features](https://github.com/CoderGamester/Services/issues)
+- **Discussions**: [Ask questions and share ideas](https://github.com/CoderGamester/Services/discussions)
 
 ## License
 
