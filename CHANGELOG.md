@@ -7,13 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [2.1.2] - 2026-07-29
 
 **Fixed**:
-- Removed a dangling asmdef GUID reference (`GUID:ffab5256b265d45fa9fb86697af7ee2b`) from `Editor/GameLovers.Services.Editor.asmdef` — resolved to no assembly anywhere in the repo or `Library/PackageCache`.
 - Renamed `Tests/EditMode/GameLovers.Services.Tests.asmdef` to `GameLovers.Services.Editor.Tests.asmdef` to match its own `name` field (`GameLovers.Services.Editor.Tests`); GUID preserved via `git mv` on the paired `.meta`.
 - `Tests/PlayMode/GameLovers.Services.Tests.Playmode.asmdef` no longer sets `autoReferenced: true` (was the only test asmdef in the repo doing so). Test discovery is unaffected — the Test Runner finds test assemblies via the `UNITY_INCLUDE_TESTS` define constraint, independent of `autoReferenced`.
 
 **Docs**:
 - `Samples~/ServicesPlayground`'s `package.json` description no longer claims the sample UI "is built programmatically" — it ships as a hand-authored prefab (`ServicesPlaygroundUI.prefab`) with a `[SerializeField]`-wired driver script.
-- Converged `README.md`'s repository links on the actual origin (`github.com/CoderGamester/Services`) — previously mixed with `com.gamelovers.services`, which is not this repository's name. Also fixed the GameData cross-reference link (actual origin is `Unity-GameData`, not `com.gamelovers.gamedata`).
+- Converged `README.md`'s repository links on the actual origin.
 
 ## [2.1.1] - 2026-07-04
 
