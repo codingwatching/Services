@@ -72,6 +72,28 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AssetResolverService.SelectAsset must return the configured error placeholder, not the real
+		// not-yet-loaded reference, when `!isDone` — the package's principal silent-failure mode.
+		// RCR: AssetResolverService.cs SelectAsset — invert the Sprite branch to
+		// `isDone ? errorSprite as TAsset : asset as TAsset` → RED (returns the real Sprite). 2026-08-01
+		public void SelectAsset_WhenReferenceNotDone_ReturnsErrorPlaceholderNotNull()
+		{
+			var texture = Texture2D.blackTexture;
+			var realSprite = Sprite.Create(texture, new Rect(0, 0, 1, 1), Vector2.zero);
+			var errorSprite = Sprite.Create(texture, new Rect(0, 0, 1, 1), Vector2.zero);
+
+			var result = AssetResolverService.SelectAsset<Sprite>(typeof(Sprite), realSprite, isDone: false,
+				instantiate: false, errorSprite: errorSprite, errorCube: null, errorMaterial: null, errorClip: null);
+
+			Assert.IsNotNull(result);
+			Assert.AreSame(errorSprite, result);
+			Assert.AreNotSame(realSprite, result);
+
+			UnityEngine.Object.DestroyImmediate(realSprite);
+			UnityEngine.Object.DestroyImmediate(errorSprite);
+		}
+
+		[Test]
 		public void AddDebugConfigs_StoresAllProvided()
 		{
 			var shader = Shader.Find("Standard") ?? Shader.Find("Unlit/Color");

@@ -11,7 +11,8 @@
   "dependencies": {
     "com.gamelovers.gamedata": "1.0.0",
     "com.unity.addressables": "1.21.20",
-    "com.cysharp.unitask": "2.5.10"
+    "com.cysharp.unitask": "2.5.10",
+    "com.unity.test-framework.performance": "3.5.0"
   },
   "samples": [
     {

@@ -142,5 +142,39 @@ namespace GameLoversEditor.Services.Tests
 
 			Assert.DoesNotThrow(() => _pool.Dispose());
 		}
+
+		[UnityTest]
+		// ADMIT: GameObjectPool.Dispose(bool) destroyed SampleEntity unconditionally, ignoring disposeSampleEntity,
+		// so Dispose(false) still destroyed a sample entity the caller explicitly asked to keep.
+		// RCR: GameObjectPool.cs Dispose — revert to unconditional `Object.Destroy(SampleEntity);` → RED (the
+		// sample entity is destroyed even with disposeSampleEntity: false). 2026-08-01
+		public IEnumerator Dispose_WithDisposeSampleEntityFalse_DoesNotDestroySampleEntity()
+		{
+			_pool.Dispose(false);
+
+			yield return null;
+
+			Assert.IsFalse(_sample == null);
+		}
+
+		[UnityTest]
+		// ADMIT: ObjectPoolBase<T>.SpawnEntity retries popping while the popped entity is Unity fake-null, so a
+		// pooled GameObject destroyed by an external owner while despawned is never handed back out.
+		// RCR: ObjectPool.cs SpawnEntity — collapse the do-while retry to a single unconditional pop → RED (Spawn
+		// returns the destroyed instance; IsFalse(freshInstance == null) fails). 2026-08-01
+		public IEnumerator Spawn_WhenPooledEntityWasDestroyedExternally_ReturnsFreshInstance()
+		{
+			var instance = _pool.Spawn();
+			_pool.Despawn(instance);
+
+			Object.DestroyImmediate(instance);
+
+			var freshInstance = _pool.Spawn();
+
+			Assert.IsFalse(freshInstance == null);
+			Assert.AreNotSame(instance, freshInstance);
+
+			yield return null;
+		}
 	}
 }

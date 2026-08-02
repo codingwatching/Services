@@ -278,9 +278,7 @@ namespace GameLovers.Services.AddressableIds.Editor
 			stringBuilder.AppendLine("{");
 
 			stringBuilder.AppendLine($"\tpublic enum {settings.ScriptFilename}");
-			stringBuilder.AppendLine("\t{");
-			GenerateAddressEnums(stringBuilder, assetList);
-			stringBuilder.AppendLine("\t}");
+			stringBuilder.Append(BuildEnumSource(ExtractAddresses(assetList)));
 
 			stringBuilder.AppendLine("");
 			stringBuilder.AppendLine("\tpublic enum AddressableLabel");
@@ -485,26 +483,48 @@ namespace GameLovers.Services.AddressableIds.Editor
 			}
 		}
 
-		private static void GenerateAddressEnums(StringBuilder stringBuilder, IReadOnlyList<AddressableAssetEntry> assetList)
+		/// <summary>
+		/// Pure string-builder: turns <paramref name="addresses"/> into the generated C# enum member-block
+		/// source text (opening brace, one member per address, closing brace) that <see cref="GenerateScript"/>
+		/// inserts after the <c>public enum &lt;Name&gt;</c> header line. Takes no <c>AssetDatabase</c>
+		/// dependency — operates on plain address strings only, so it is directly unit-testable.
+		/// Extracted from the previous inlined <c>GenerateAddressEnums(StringBuilder, IReadOnlyList&lt;AddressableAssetEntry&gt;)</c>;
+		/// no behaviour change versus the logic it replaces.
+		/// </summary>
+		internal static string BuildEnumSource(IReadOnlyCollection<string> addresses)
+		{
+			var addressList = addresses as IReadOnlyList<string> ?? new List<string>(addresses);
+			var stringBuilder = new StringBuilder();
+
+			stringBuilder.AppendLine("\t{");
+			AppendAddressEnumMembers(stringBuilder, addressList);
+			stringBuilder.AppendLine("\t}");
+
+			return stringBuilder.ToString();
+		}
+
+		private static void AppendAddressEnumMembers(StringBuilder stringBuilder, IReadOnlyList<string> addresses)
 		{
 			var addedNames = new List<string>();
 
-			for (var i = 0; i < assetList.Count; i++)
+			for (var i = 0; i < addresses.Count; i++)
 			{
-				var name = ResolveSanitizedEnumName(assetList[i].address, addedNames, out _);
+				var name = ResolveSanitizedEnumName(addresses[i], addedNames, out _);
 				addedNames.Add(name);
 
 				stringBuilder.Append("\t\t");
-				stringBuilder.Append(GetCleanName(assetList[i].address, true));
-				stringBuilder.Append(i + 1 == assetList.Count ? "\n" : ",\n");
+				stringBuilder.Append(name);
+				stringBuilder.Append(i + 1 == addresses.Count ? "\n" : ",\n");
 			}
 		}
 
 		/// <summary>
-		/// Resolves the enum-member name for a given Addressable <paramref name="address"/>, applying the
-		/// same <c>name_filetype</c> fallback that <see cref="GenerateAddressEnums"/> uses when the cleaned
-		/// name collides with one already in <paramref name="seenNames"/>. Sets <paramref name="collided"/>
-		/// to <c>true</c> when the fallback path was taken.
+		/// Resolves the <c>name_filetype</c>-suffixed disambiguation candidate for a given Addressable
+		/// <paramref name="address"/> when its cleaned name collides with one already in
+		/// <paramref name="seenNames"/>. Sets <paramref name="collided"/> to <c>true</c> when the fallback
+		/// path was taken. Used by both <see cref="AppendAddressEnumMembers"/> (to emit a unique enum member
+		/// name) and <see cref="DetectSanitizedNameCollisions"/> (to report collisions for the Explorer diff
+		/// view).
 		/// </summary>
 		private static string ResolveSanitizedEnumName(string address, List<string> seenNames, out bool collided)
 		{

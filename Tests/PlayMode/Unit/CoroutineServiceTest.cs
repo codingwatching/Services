@@ -143,6 +143,36 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: CoroutineService.StopCoroutine guards a null `coroutine` handle before forwarding to
+		// _serviceObject.ExternalStopCoroutine.
+		// RCR: CoroutineService.cs StopCoroutine — remove the `coroutine == null ||` term from the guard → RED
+		// (falls through to MonoBehaviour.StopCoroutine(null), which throws). 2026-08-01
+		public IEnumerator StopCoroutine_NullCoroutine_DoesNotThrow()
+		{
+			Assert.DoesNotThrow(() => _coroutineService.StopCoroutine(null));
+
+			yield return null;
+		}
+
+		[UnityTest]
+		// ADMIT: CoroutineService.StopCoroutine also guards the host _serviceObject being Unity fake-null (native
+		// object destroyed while the C# reference survives) — distinct from Dispose(), which assigns a real null.
+		// This test destroys the host GameObject directly to reproduce that fake-null path.
+		// RCR: CoroutineService.cs StopCoroutine — remove the `_serviceObject == null ||` term from the guard →
+		// RED (MissingReferenceException from `_serviceObject.gameObject`). 2026-08-01
+		public IEnumerator StopCoroutine_AfterServiceObjectDestroyed_DoesNotThrowMissingReference()
+		{
+			var coroutine = _coroutineService.StartCoroutine(TestCoroutine(5));
+			var host = Object.FindObjectsByType<CoroutineServiceMonoBehaviour>()[0];
+
+			Object.Destroy(host.gameObject);
+
+			yield return null; // Allow the native destruction to be reflected on the host reference
+
+			Assert.DoesNotThrow(() => _coroutineService.StopCoroutine(coroutine));
+		}
+
+		[UnityTest]
 		public IEnumerator Dispose_DestroysHostGameObject()
 		{
 			var initialCount = Object.FindObjectsByType<CoroutineServiceMonoBehaviour>().Length;

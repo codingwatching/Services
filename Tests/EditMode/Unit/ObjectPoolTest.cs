@@ -21,7 +21,14 @@ namespace GameLoversEditor.Services.Tests
 		{
 			private IObjectPool<IMockEntity> _pool;
 
-			public void Init(IObjectPool<IMockEntity> pool) => _pool = pool;
+			public int InitCount { get; private set; }
+			public IObjectPool<IMockEntity> LastInitPool => _pool;
+
+			public void Init(IObjectPool<IMockEntity> pool)
+			{
+				_pool = pool;
+				InitCount++;
+			}
 
 			public bool Despawn() => _pool.Despawn(this);
 			public void OnDespawn()	{}
@@ -95,6 +102,23 @@ namespace GameLoversEditor.Services.Tests
 			Assert.AreEqual(1, pool.SpawnedReadOnly.Count);
 			Assert.IsTrue(sharedEntity.Despawn());
 			Assert.AreEqual(0, pool.SpawnedReadOnly.Count);
+		}
+
+		[Test]
+		// ADMIT: ObjectPoolBase<T>.CallInstantiator is the only site that calls IPoolEntityObject<T>.Init(pool),
+		// so every instance the pool produces must be told which pool owns it.
+		// RCR: ObjectPool.cs CallInstantiator — delete `poolEntity?.Init(this);` → RED (InitCount stays 0 instead
+		// of 2, LastInitPool stays null). 2026-08-01
+		public void Spawn_OnPoolEntityObject_CallsInitWithOwningPoolEveryTime()
+		{
+			MockEntity sharedEntity = null;
+			var pool = new ObjectPool<IMockEntity>(0, () => sharedEntity ??= new MockEntity());
+
+			pool.Spawn();
+			pool.Spawn();
+
+			Assert.AreEqual(2, sharedEntity.InitCount);
+			Assert.AreSame(pool, sharedEntity.LastInitPool);
 		}
 
 		[Test]

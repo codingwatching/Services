@@ -10,7 +10,10 @@ namespace GameLoversEditor.Services.Tests
 {
 	/// <summary>
 	/// Integration tests for <see cref="VersionServices"/> that exercise the async resource-loading
-	/// pipeline and all post-load property accessors.
+	/// pipeline. The post-load property-accessor assertions and the auto-load-on-access assertion are
+	/// covered by the EditMode sync fixture (<see cref="VersionServicesSyncLoadTest"/>) via the
+	/// synchronous <see cref="VersionServices.LoadVersionData"/> path — this fixture is kept narrowly
+	/// scoped to the one thing that is genuinely distinct production code: the async load path.
 	/// Requires Assets/Configs/Resources/version-data.txt to exist in the project.
 	/// </summary>
 	public class VersionServicesIntegrationTest
@@ -24,22 +27,11 @@ namespace GameLoversEditor.Services.Tests
 			LoadedField.SetValue(null, false);
 		}
 
-		[UnityTest, Order(1)]
-		public IEnumerator AccessBeforeLoad_AutoLoads()
-		{
-			Assert.IsFalse((bool)LoadedField.GetValue(null), "Precondition: SetUp resets _loaded to false");
-
-			Assert.DoesNotThrow(() => { var _ = VersionServices.VersionInternal; });
-			Assert.DoesNotThrow(() => { var _ = VersionServices.Branch; });
-			Assert.DoesNotThrow(() => { var _ = VersionServices.Commit; });
-			Assert.DoesNotThrow(() => { var _ = VersionServices.BuildNumber; });
-
-			Assert.IsTrue((bool)LoadedField.GetValue(null), "Accessor should auto-trigger LoadVersionData via EnsureLoaded");
-
-			yield return null;
-		}
-
-		[UnityTest, Order(2)]
+		[UnityTest]
+		// ADMIT: VersionServices.LoadVersionDataAsync is the only async load path and no other test exercises it;
+		// broken TaskCompletionSource wiring would leave it never completing or never flipping the loaded flag.
+		// RCR: VersionServices.cs LoadVersionDataAsync — comment out
+		// `ApplyTextAsset(textAsset, asyncContext: true);` → RED (_loaded stays false). 2026-07-31
 		public IEnumerator LoadVersionDataAsync_Successfully()
 		{
 			var task = VersionServices.LoadVersionDataAsync();
@@ -50,66 +42,6 @@ namespace GameLoversEditor.Services.Tests
 			}
 
 			Assert.IsTrue((bool)LoadedField.GetValue(null), "Version data should be loaded");
-		}
-
-		[UnityTest, Order(3)]
-		public IEnumerator AfterLoad_VersionInternal_ContainsExpectedParts()
-		{
-			var task = VersionServices.LoadVersionDataAsync();
-			while (!task.IsCompleted) yield return null;
-
-			var version = VersionServices.VersionInternal;
-
-			Assert.IsNotNull(version);
-			Assert.IsNotEmpty(version);
-			Assert.IsTrue(version.Contains("."), "VersionInternal should contain version separators");
-		}
-
-		[UnityTest, Order(4)]
-		public IEnumerator AfterLoad_Branch_ReturnsNonEmptyString()
-		{
-			var task = VersionServices.LoadVersionDataAsync();
-			while (!task.IsCompleted) yield return null;
-
-			var branch = VersionServices.Branch;
-
-			Assert.IsNotNull(branch);
-			Assert.IsNotEmpty(branch);
-		}
-
-		[UnityTest, Order(5)]
-		public IEnumerator AfterLoad_Commit_ReturnsNonEmptyString()
-		{
-			var task = VersionServices.LoadVersionDataAsync();
-			while (!task.IsCompleted) yield return null;
-
-			var commit = VersionServices.Commit;
-
-			Assert.IsNotNull(commit);
-			Assert.IsNotEmpty(commit);
-		}
-
-		[UnityTest, Order(6)]
-		public IEnumerator AfterLoad_BuildNumber_ReturnsNonEmptyString()
-		{
-			var task = VersionServices.LoadVersionDataAsync();
-			while (!task.IsCompleted) yield return null;
-
-			var buildNumber = VersionServices.BuildNumber;
-
-			Assert.IsNotNull(buildNumber);
-			Assert.IsNotEmpty(buildNumber);
-		}
-
-		[UnityTest, Order(7)]
-		public IEnumerator VersionExternal_AlwaysAccessible_WithoutLoad()
-		{
-			var external = VersionServices.VersionExternal;
-
-			Assert.IsNotNull(external);
-			Assert.IsNotEmpty(external);
-
-			yield return null;
 		}
 	}
 }

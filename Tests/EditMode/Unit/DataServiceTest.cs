@@ -36,13 +36,26 @@ namespace GameLoversEditor.Services.Tests
 			}
 		}
 
+		private const string PersistentDataKey = nameof(PersistentData);
+
 		private DataService _dataService;
 
 		[SetUp]
 		public void Init()
 		{
 			_dataService = new DataService();
-			PlayerPrefs.DeleteAll();
+			// Only delete the key(s) this fixture's tests write (DataService.SaveData/SaveAllData key on
+			// typeof(T).Name) rather than PlayerPrefs.DeleteAll(), which would wipe unrelated keys shared
+			// across the whole EditMode PlayerPrefs store (e.g. PerformanceTestSetup's PT_Run/PT_Settings).
+			// RCR: DataService.cs LoadData<T> — a stale PersistentDataKey value left by a prior run would
+			// make LoadData_NoExistingData_CreatesNew RED (loadedData.Name is the stale Name, not null).
+			PlayerPrefs.DeleteKey(PersistentDataKey);
+		}
+
+		[TearDown]
+		public void Cleanup()
+		{
+			PlayerPrefs.DeleteKey(PersistentDataKey);
 		}
 
 		[Test]

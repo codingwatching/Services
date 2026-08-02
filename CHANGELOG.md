@@ -4,6 +4,16 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+**Fixed**:
+- `GameObjectPool.Dispose(bool disposeSampleEntity)` and `GameObjectPool<T>.Dispose(bool)` destroyed `SampleEntity` unconditionally, ignoring the argument — `Dispose(false)` destroyed a sample entity the caller explicitly asked to keep.
+- `ObjectPoolBase<T>.SpawnEntity` could hand out a destroyed pooled object. Its retry loop tested `entity == null`, which inside a generic constrained only to `class` compiles to plain reference equality and never reaches `UnityEngine.Object`'s overloaded `==` that detects a destroyed ("fake-null") native object. A pooled `GameObject`/`Behaviour` destroyed by an external owner while despawned was therefore returned to the next `Spawn()` caller, who hit a `MissingReferenceException` a frame later. Now routed through a runtime type check that dispatches to the Unity overload when the entity is a `UnityEngine.Object`, and falls back to reference equality for POCO pooled types.
+- `AddressableIdsGeneratorUtils` emitted duplicate enum members when two Addressable addresses sanitized to the same C# identifier (e.g. `ui/main-menu` and `ui-main/menu` both clean to `ui_main_menu`), producing generated code that does not compile. The member-append path now uses the disambiguated name it already computed instead of re-deriving the raw cleaned name.
+
+**Changed**:
+- `package.json` now declares `com.unity.test-framework.performance` (3.5.0). Both test asmdefs already referenced `Unity.PerformanceTesting` unconditionally, so consumers without that package installed hit a missing-assembly compile error in this package's test assemblies.
+
 ## [2.1.2] - 2026-07-29
 
 **Fixed**:

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using GameLovers.Services;
 using NUnit.Framework;
 using UnityEngine;
@@ -61,6 +62,30 @@ namespace GameLoversEditor.Services.Tests
 			
 			// If overflow is carried, it should have triggered at least twice
 			Assert.GreaterOrEqual(callCount, 2);
+		}
+
+		[UnityTest]
+		// ADMIT: TickService.Update special-cases `tickData.DeltaTime == 0` so the overflow calc never evaluates
+		// `deltaTime % 0`. Float modulo-by-zero yields NaN (not an exception), and once NaN reaches LastTickTime
+		// every later comparison is unordered-false, feeding the subscriber NaN deltaTime on every tick.
+		// RCR: TickService.cs Update — drop the zero-guard, leaving `var overFlow = deltaTime % tickData.DeltaTime;`
+		// → RED (the NaN assertion below fails from the 2nd received deltaTime on). A callCount-only assertion
+		// would NOT redden: NaN comparisons are always false, so ticking never stops — it just carries NaN. 2026-08-01
+		public IEnumerator SubscribeOnUpdate_ZeroDeltaTimeWithOverflowToNextTick_TicksEveryFrame()
+		{
+			var deltaTimes = new List<float>();
+			_tickService.SubscribeOnUpdate(dt => deltaTimes.Add(dt), deltaTime: 0f, timeOverflowToNextTick: true);
+
+			yield return null;
+			yield return null;
+			yield return null;
+
+			Assert.AreEqual(3, deltaTimes.Count);
+
+			foreach (var dt in deltaTimes)
+			{
+				Assert.IsFalse(float.IsNaN(dt), "Received deltaTime should never be NaN");
+			}
 		}
 
 		[UnityTest]

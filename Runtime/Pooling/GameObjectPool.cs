@@ -29,7 +29,10 @@ namespace GameLovers.Services.Pooling
 		/// <inheritdoc />
 		public override void Dispose(bool disposeSampleEntity)
 		{
-			Object.Destroy(SampleEntity);
+			if (disposeSampleEntity)
+			{
+				Object.Destroy(SampleEntity);
+			}
 
 			base.Dispose(disposeSampleEntity);
 		}
@@ -130,7 +133,10 @@ namespace GameLovers.Services.Pooling
 		/// <inheritdoc />
 		public override void Dispose(bool disposeSampleEntity)
 		{
-			Object.Destroy(SampleEntity.gameObject);
+			if (disposeSampleEntity)
+			{
+				Object.Destroy(SampleEntity.gameObject);
+			}
 
 			base.Dispose(disposeSampleEntity);
 		}

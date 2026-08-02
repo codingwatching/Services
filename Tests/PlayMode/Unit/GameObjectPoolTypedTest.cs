@@ -43,6 +43,20 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: GameObjectPool<T>.Dispose(bool) destroyed SampleEntity.gameObject unconditionally — the same bug
+		// already fixed on the non-generic GameObjectPool (see the sibling test in GameObjectPoolTest.cs).
+		// RCR: GameObjectPool.cs GameObjectPool<T>.Dispose — revert to unconditional
+		// `Object.Destroy(SampleEntity.gameObject);` → RED (_sampleGo destroyed with disposeSampleEntity: false). 2026-08-01
+		public IEnumerator Dispose_WithDisposeSampleEntityFalse_DoesNotDestroySampleEntity()
+		{
+			_pool.Dispose(false);
+
+			yield return null;
+
+			Assert.IsFalse(_sampleGo == null);
+		}
+
+		[UnityTest]
 		public IEnumerator Spawn_ReturnsComponentReference()
 		{
 			var instance = _pool.Spawn();

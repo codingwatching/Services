@@ -1,32 +1,132 @@
-# GameLovers.Services Tests - AI Agent Guide
+# GameLovers.Services Tests — AI Agent Guide
 
 This file contains testing conventions for the `com.gamelovers.services` package. It is the source of truth when reading, editing, or creating test files under `Tests/`.
 
 For runtime architecture, gotchas, and package-level context, see the parent [`AGENTS.md`](../AGENTS.md).
 
-## 1. Placement Rules (EditMode vs PlayMode)
+§1 and §2 are shared verbatim across every GameLovers package. A change to either must be applied to all six `Tests/AGENTS.md` files in the same working session, one commit per submodule.
+
+## 1. ADMIT — Test Admission Test
+
+A proposed test is admitted only if all five answers are YES. Record the first two
+as comments on the test itself.
+
+| | Question |
+|---|---|
+| **A1 DEFECT** | Can you name the defect in one sentence, referencing a production file and symbol? "It could break" is not a defect. |
+| **A2 RED** | Can you name the exact production edit — one line or one branch, identified by `file` + `symbol` — that makes this test fail? If no such single edit exists, the test pins nothing. |
+| **A3 PACKAGE** | Does every assertion read a value this package computed? Reject assertions on `new X() != new X()`, `!= null` on a freshly constructed object, default struct/enum values, or anything the C# spec or the Unity engine already guarantees. |
+| **A4 CHEAPEST** | Is this the cheapest tier that covers the defect? EditMode beats PlayMode; a `[TestCase]` row on an existing fixture beats a new `[Test]`; a new `[Test]` beats a new fixture. Grep before writing. |
+| **A5 UNIQUE** | Does no existing test already fail on the A2 edit? Grep the symbol under test across `Tests/` first. |
+
+**A5-bis — inherited-type coverage.** Before proposing a fixture for a type that
+derives from or wraps another tested type, grep `Tests/` for the derived type's
+name and for paired `[SetUp]` fields. Base-and-derived pairs are tested jointly in
+the base's fixture unless the derived type adds new public surface.
+
+**Two mechanical disqualifiers** — violate one and the test is rejected:
+
+- **D1 — tautology.** If the only assertion is `Assert.DoesNotThrow`,
+  `Assert.IsNotNull`, or a disjunction of `Contains(...)` substrings, the test
+  fails A2 unless you write down what *would* throw, be null, or not match. A
+  substring disjunction that includes a string the input itself embeds is
+  unfalsifiable by construction.
+- **D2 — name/body contract.** The test name is a claim. If deleting the
+  production feature the name mentions leaves the test green, the name is a lie.
+
+**Smoke exemption, by directory.** Fixtures under `Smoke/` are exempt from A1 and
+A2 and may assert construction-without-throwing only. Their defect class is "the
+assembly no longer loads / bootstrap regressed", which is real and not expressible
+otherwise. The exemption is by directory, not by assertion shape — a Unit test
+that only asserts `IsNotNull` is still rejected.
+
+## 2. RCR — Revert and Confirm Red
+
+> Every new or strengthened test must be observed failing, once, against a
+> one-line production revert, before it is committed.
+
+Line coverage proves a line executed. It does not prove any test would notice if
+that line were wrong. RCR is the cheap substitute for mutation testing, and it is
+what makes a coverage number trustworthy.
+
+**Procedure** (~90 seconds per test):
+
+1. Write the test. Run it. Green.
+2. Apply the A2 edit — invert the comparison, delete the guard clause, return
+   early, comment out the one line. **One line only**: a broad deletion proves
+   nothing, because it would also "fail" a tautological test via a compile error.
+3. Run only that test. It must be **RED**, and the failure message must name the
+   thing you broke. A red-by-`NullReferenceException` does not count — that is the
+   test crashing, not asserting.
+4. `git checkout -- <production file>`. Re-run. Green.
+5. Record the mutation in the test's header comment.
+
+**Recording format** — on the test, not in a separate ledger. A ledger rots the
+moment a test is renamed; a comment travels with the test, appears in every diff
+that touches it, and lets a reviewer re-run the mutation in 30 seconds.
+
+```csharp
+[Test]
+// ADMIT: <one-sentence defect, naming a production file and symbol>
+// RCR:   <file> <symbol> — <the one-line mutation> → RED (<what the failure says>). <YYYY-MM-DD>
+public void Method_Condition_ExpectedResult()
+```
+
+**Anchor on `file` + `symbol`, never `file:line`.** Line numbers rot on the first
+unrelated edit above them — a stale `:474` pointing at a method that moved to `:464`
+sends the next reader to the wrong code and quietly destroys the comment's value.
+
+**Budget: four lines is the target, six is the ceiling.** One sentence of ADMIT,
+one of RCR, wrapped. This obeys the repo-wide rule in the root `AGENTS.md`
+(§ Code comments): *"One sentence usually suffices. Multi-paragraph rationale is a
+smell."* Anything past the ceiling belongs in the commit body or `docs/`, not on the
+test. Two things in particular must NOT appear here:
+- **Change narration.** *"An earlier version of this test was a tautology"* is diff
+  context; the root `AGENTS.md` forbids it outright. A comment states the code's
+  permanent condition, not its history. Put it in the commit message.
+- **Investigation transcript.** The empirical detail that convinced *you* is not
+  what the next reader needs. They need the mutation and the expected failure.
+
+The one extension worth its lines is a **negative** result: naming a nearby edit
+that looks like a valid mutation but is NOT one (because it is already guarded, or
+because it reddens a sibling test instead). That stops the next reader repeating a
+dead end, and it cannot be recovered from the code.
+
+Also add one line per new test to the commit body: `RCR: <TestName> ← <file> <symbol> <mutation>`.
+That makes `git log --grep=RCR` the audit surface.
+
+**Two consequences, stated so RCR does not become theatre:**
+
+- A test with no `// RCR:` line is not trusted coverage. In an audit it is a
+  suspect by default.
+- **Benchmarks are included, inverted:** a performance test must be observed
+  *changing its number* when the measured operation is removed from the measured
+  body. A benchmark whose measured region does not contain the workload is a
+  tautology in `Measure` clothing.
+
+## 3. Placement Rules (EditMode vs PlayMode)
 - **EditMode / Unit** (`EditMode/Unit/`): Pure-logic services with no `MonoBehaviour` or `GameObject` dependency. Use `[Test]`. NSubstitute is available (referenced only in the EditMode asmdef).
 - **EditMode / Performance** (`EditMode/Performance/`): Perf benchmarks that do not need a running player. Require `PerformanceTestSetup` (see below).
 - **PlayMode / Unit** (`PlayMode/Unit/`): Services that create `DontDestroyOnLoad` GameObjects (`TickService`, `CoroutineService`, `GameObjectPool`, `GameObjectPool<T>`). Use `[UnityTest]` returning `IEnumerator`.
-- **PlayMode / Integration** (`PlayMode/Integration/`): Cross-service or async workflows (e.g., `VersionServicesIntegrationTest` loads resources).
+- **PlayMode / Integration** (`PlayMode/Integration/`): Cross-service or async workflows that span multiple bound services or exercise a real load path (e.g., full service bootstrap/teardown sequences, async resource loading).
 - **PlayMode / Performance** (`PlayMode/Performance/`): Perf benchmarks that need a running player.
 - **PlayMode / Smoke** (`PlayMode/Smoke/`): Lightweight "construct without throwing" tests that confirm services instantiate and basic bind/resolve works.
 
 **Decision tree**: if the service under test creates a `GameObject` or relies on Unity callbacks → **PlayMode**; otherwise → **EditMode**.
 
-## 2. Namespace and Suppression
+## 4. Namespace and Suppression
 All test files use `namespace GameLoversEditor.Services.Tests` with the suppression comment:
 ```csharp
 // ReSharper disable once CheckNamespace
 ```
 
-## 3. Naming
+## 5. Naming
 - **Test class**: `{ServiceName}Test` (e.g., `ObjectPoolTest`, `TickServiceTest`). Performance tests use `{ServiceName}PerformanceTest`. Integration tests use `{ServiceName}IntegrationTest`.
 - **Test method**: `MethodOrBehavior_Condition_ExpectedResult` — e.g., `Spawn_Successfully`, `Range_MinEqualsMax_ReturnsMin`, `Despawn_NotSpawnedObject_ReturnsFalse`.
 - **SetUp method**: Named `Init()`.
 - **TearDown method**: Named `Dispose()` (when calling `service.Dispose()`) or `Cleanup()` (when doing `Object.Destroy` / `MainInstaller.Clean()`).
 
-## 4. Mock / Helper Types
+## 6. Mock / Helper Types
 - Define mock interfaces and classes as **nested types** inside the test class (e.g., `IMockEntity`, `MockEntity`, `MockBehaviour`, `IMockSubscriber`).
 - EditMode tests use **NSubstitute** (`Substitute.For<T>()`) for interface mocking. PlayMode tests use concrete `MonoBehaviour` stubs with manual counters (NSubstitute is not referenced in the PlayMode asmdef).
 
@@ -38,16 +138,35 @@ When a test would otherwise substitute such an interface, do ONE of:
 - Hand-write a minimal fake class implementing the interface.
 Do not "work around" the proxy failure by restructuring the type hierarchy — `IMockEntity : IPoolEntityObject<IMockEntity>` is a legitimate modelling choice that the runtime code relies on.
 
-## 5. Fields and Setup
+## 7. Black-Box / Reflection Policy
+
+### Authorized reflection sites (storage-assertion exception)
+Reflection on private state is also authorized when a setter has no observable readback path through the public API and exercising the side-effect would require a runtime environment the EditMode harness cannot provide (e.g., a partially-loaded `AssetReference`). In those cases, asserting the storage field directly via `BindingFlags.NonPublic | BindingFlags.Instance` is acceptable and preferable to a Red-testability skip. The test method MUST be a single setter-storage assertion (not a multi-step behavioural assertion); if behaviour is what you need to verify, refactor to expose an `internal` accessor under `InternalsVisibleTo` instead.
+
+Currently authorized:
+- `AssetResolverServiceTest.AddDebugConfigs_StoresAllProvided` — reads the private `AssetResolverService._errorMaterial` field to confirm `AddDebugConfigs` stored its argument. The fallback-material lookup path (`AssetResolverService.SelectAsset<TAsset>` in `Runtime/AssetResolverService.cs`, called by the private `Convert<TAsset>` wrapper) only fires when `!assetReference.IsDone`, which the EditMode harness cannot fabricate without a real Addressables catalog. Documented here per the Type B audit run on 2026-05-04 (Referee §4 missed-anti-pattern finding, parent picked option A).
+
+## 8. Fields and Setup
 - Fields are prefixed with `_` and use **concrete service types** (not interfaces): `private TickService _tickService;`, `private ObjectPool<IMockEntity> _pool;`.
 - Constants use `PascalCase`: `private const int Seed = 12345;`.
 - `[SetUp]` creates fresh service instances. Services that create GameObjects (`TickService`, `CoroutineService`) **must** call `Dispose()` in `[TearDown]`; `GameObjectPool` tests also `Object.Destroy` the sample GameObject.
+- Use `[Order(n)]` when tests must run in sequence (e.g., `VersionServicesIntegrationTest` resets static state, then loads, then reads).
+- Reset shared static state in `[SetUp]` (reflection into private fields is acceptable for static classes like `VersionServices`).
 
-## 6. Assertion Style
-- NUnit classic model only: `Assert.AreEqual`, `Assert.AreSame`, `Assert.IsTrue`, `Assert.Throws<T>`, `Assert.DoesNotThrow`, etc.
-- No constraint-model (`Assert.That(...)`) usage in the existing suite.
+## 9. Assertion Style
+- NUnit classic model is the **default**: `Assert.AreEqual`, `Assert.AreSame`, `Assert.IsTrue`, `Assert.Throws<T>`, `Assert.DoesNotThrow`, etc.
+- `Assert.That(...)` (constraint model) is permitted **ONLY** for tolerance/range constraints that classic asserts cannot express (`Is.EqualTo(x).Within(t)`, `Is.LessThan(x)`, and similar). The only authorized sites are `TimeServiceTest.cs:67,83`. Any other use is a review reject.
 
-## 7. Performance Tests
+## 10. PlayMode Test Cleanup
+
+This package's `PlayMode/Unit/` and `PlayMode/Integration/` fixtures create `DontDestroyOnLoad` GameObjects (`TickService`, `CoroutineService`, `GameObjectPool`, `GameObjectPool<T>`) and bind services through `MainInstaller`. These survive scene teardown between tests unless explicitly torn down, and will leak into the next test's domain if left alive.
+
+- `[TearDown]` **must** call `Dispose()` on any `TickService` / `CoroutineService` instance created in `[SetUp]` — this destroys the host `DontDestroyOnLoad` GameObject.
+- `GameObjectPool` / `GameObjectPool<T>` tests must additionally `Object.Destroy` the sample GameObject (or call `Dispose(disposeSampleEntity: true)`) so no pooled instances survive into the next test.
+- Fixtures that bind through `MainInstaller.Bind<T>(...)` (e.g. `ServiceLifecycleTest`, `VersionServicesIntegrationTest`) **must** call `MainInstaller.Clean()` in `[TearDown]` to clear bindings; a missing `Clean()` call causes the next fixture's `Bind<T>` call to throw (`Installer` re-bind throws via `Dictionary.Add`).
+- Do not rely on domain reload or Unity's own scene-unload to clean these up between tests — the Unity Test Runner does not guarantee a domain reload between every test in a fixture.
+
+## 11. Performance Tests
 - Annotate with `[Test, Performance]` and `[Category("Performance")]`.
 - Apply `[PrebuildSetup(typeof(PerformanceTestSetup))]` at the class level and call `PerformanceTestSetup.InitializePerformanceTestMetadata()` in `[OneTimeSetUp]`.
 - Use `Measure.Method(() => { ... }).WarmupCount(n).MeasurementCount(n).Run()`.
@@ -63,17 +182,7 @@ Why both keys: `RunSettings.Instance` is a lazy-loaded singleton (`ResourcesLoad
 
 `PerformanceTestSetupTest.MeasureMethod_AfterInitialize_DoesNotThrow` is the regression sentinel for this contract: a no-op `Measure.Method(() => {}).WarmupCount(1).MeasurementCount(1).Run()` wrapped in `Assert.DoesNotThrow`. If a future change to `PerformanceTestSetup` drops either PlayerPref, this test fails first with a class name that points directly at the harness — keep it green.
 
-## 8. Integration Tests
-- Use `[Order(n)]` when tests must run in sequence (e.g., `VersionServicesIntegrationTest` resets static state, then loads, then reads).
-- Reset shared static state in `[SetUp]` (reflection into private fields is acceptable for static classes like `VersionServices`).
-
-### Authorized reflection sites (storage-assertion exception)
-Reflection on private state is also authorized when a setter has no observable readback path through the public API and exercising the side-effect would require a runtime environment the EditMode harness cannot provide (e.g., a partially-loaded `AssetReference`). In those cases, asserting the storage field directly via `BindingFlags.NonPublic | BindingFlags.Instance` is acceptable and preferable to a Red-testability skip. The test method MUST be a single setter-storage assertion (not a multi-step behavioural assertion); if behaviour is what you need to verify, refactor to expose an `internal` accessor under `InternalsVisibleTo` instead.
-
-Currently authorized:
-- `AssetResolverServiceTest.AddDebugConfigs_StoresAllProvided` — reads the private `AssetResolverService._errorMaterial` field to confirm `AddDebugConfigs` stored its argument. The fallback-material lookup path (`AssetResolverService.Convert<T>` at `Runtime/AssetResolverService.cs:474`) only fires when `!assetReference.IsDone`, which the EditMode harness cannot fabricate without a real Addressables catalog. Documented here per the Type B audit run on 2026-05-04 (Referee §4 missed-anti-pattern finding, parent picked option A).
-
-## 9. Test Directory Layout
+## 12. Test Directory Layout
 
 | Directory | Contents |
 |-----------|----------|
@@ -84,10 +193,39 @@ Currently authorized:
 | `PlayMode/Performance/` | TickService, GameObjectPool perf |
 | `PlayMode/Smoke/` | `ServicesBootstrapSmokeTest` |
 
-### Note on `AddressablesAssetLoader` coverage
-`AddressablesAssetLoader` is intentionally not covered by automated integration tests. It is a thin wrapper over `UnityEngine.AddressableAssets.Addressables` static APIs with no branching logic — every method is `LoadAssetAsync → ToUniTask → throw-on-failure → return`. Live integration would require a pre-built Addressables catalog plus a manually registered asset in the host project, and would validate Unity code rather than package code. The consumer layer (`AssetResolverService`) has full unit coverage via `AssetResolverServiceTest`, and the wrapper's behaviour is documented in `docs/asset-loading.md`.
+## 13. Coverage Register
 
-## 10. Update Policy
+Every untested symbol worth naming is either ACCEPTED (justified — do not
+re-report) or OPEN (a real gap, owed a test). An untested symbol in neither state
+is an audit finding.
+
+An ACCEPTED row needs one of exactly three falsifiable reasons:
+- **(i) no branching** — zero conditionals, so there is no behaviour to pin.
+- **(ii) engine-owned** — the assertion would target Unity/OS behaviour
+  (`[DllImport]`, `AndroidJavaObject`, Addressables statics).
+- **(iii) harness-impossible** — the state cannot be fabricated in EditMode or
+  PlayMode, **with the specific blocker named**.
+
+"Low value", "hard to test", and "covered by manual QA" are NOT valid reasons. If
+none of the three applies, the row is OPEN.
+
+ACCEPTED is dated and **expires on edit**: if the symbol's file changes, the
+reason is re-checked in that PR. A `(i) no branching` row is void the moment
+someone adds an `if`.
+
+OPEN is the only place a deletion may park coverage. A test removed for weakness
+either had a stronger sibling (named in the commit body) or leaves an OPEN row.
+The count of OPEN rows is the honest coverage-debt number.
+
+| Symbol (file:line) | State | Reason / Owed | Recorded |
+|---|---|---|---|
+| `AddressablesAssetLoader` (`Runtime/AssetsImporter/AddressablesAssetLoader.cs`) | ACCEPTED | (i) no branching — thin wrapper over `UnityEngine.AddressableAssets.Addressables` static APIs with no branching logic: every method is `LoadAssetAsync → ToUniTask → throw-on-failure → return`. Live integration would require a pre-built Addressables catalog plus a manually registered asset in the host project, and would validate Unity code rather than package code. The consumer layer (`AssetResolverService`) has full unit coverage via `AssetResolverServiceTest`, and the wrapper's behaviour is documented in `docs/asset-loading.md`. | 2026-07-31 |
+| 25 public `Editor/` types + `ServicesScaffolders` (`Editor/**`) | ACCEPTED | (iii) harness-impossible — blocker: require `AssetDatabase` access, validated manually. Already stated in the package root [`AGENTS.md`](../AGENTS.md) §4 ("AssetsConfigsImporter (Editor)"); cross-referenced here rather than restated. | 2026-07-31 |
+| `ServicesScaffolders` `#if UNITY_6000_4_OR_NEWER` guard (`Editor/Scaffolders/ServicesScaffolders.cs`) | ACCEPTED | (iii) harness-impossible — blocker: compile-time branch, only one side is reachable per Unity version, so a single test run can only ever exercise one branch of the `#if`. | 2026-07-31 |
+| `VersionServices.IsOutdatedVersion` (`Runtime/VersionServices.cs`) | OPEN | Owed: only coverage was a local reimplementation of the algorithm in `VersionServicesTest.cs`; a real test against the actual method is owed. | 2026-07-31 |
+| `AddressableIdsGeneratorUtils.ResolveSanitizedEnumName` 3-way collision (`Editor/AddressableIds/AddressableIdsGeneratorUtils.cs:531-539`) | OPEN | The two-address collision was fixed 2026-08-01 (`AppendAddressEnumMembers` now emits the disambiguated `name`). A deeper edge case remains: a THIRD address colliding with the same base name AND filetype re-derives the identical `"{name}_{filetype}"` suffix (the fallback only ever adds one suffix level and the collision check is against the original `name`, not against previously-suffixed candidates), so 3+ colliding addresses can still emit duplicates. Owed: either a numeric fallback (`_2`, `_3`, ...) or checking collision against the full history of emitted names, not just base names. | 2026-08-01 |
+
+## 14. Update Policy
 Update this file when:
 - Test conventions change (new asmdef references, assertion style, naming patterns, new test categories)
 - New test directories or categories are added

@@ -61,6 +61,34 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: RngService.Range(floatP,floatP,bool) must accept a degenerate closed range where min == max and
+		// maxInclusive is true, rather than rejecting it as inverted.
+		// RCR: RngService.cs Range — change `if (min > max || ...)` to `if (min >= max || ...)` → RED
+		// (Range(2.5f, 2.5f, true) throws IndexOutOfRangeException instead of returning 2.5f). 2026-07-31
+		public void Range_FloatMinEqualsMaxWithMaxInclusive_ReturnsMin()
+		{
+			var minMax = (floatP)2.5f;
+
+			floatP result = default;
+			Assert.DoesNotThrow(() => result = _rngService.Range(minMax, minMax, true));
+			Assert.AreEqual(minMax, result);
+		}
+
+		[Test]
+		// ADMIT: RngService.Range(floatP,floatP,bool) must throw for an exclusive (maxInclusive:false) empty range
+		// rather than falling through to the equal-bounds early return and returning min.
+		// RCR: RngService.cs Range — drop the whole `|| (!maxInclusive && ...)` disjunct, leaving `if (min > max)`
+		// → RED (returns 2.5f instead of throwing). Dropping only the `!maxInclusive &&` prefix is NOT valid here:
+		// the remaining epsilon term is true for min == max regardless, and it falsifies the inclusive sibling
+		// test instead. 2026-08-02
+		public void Range_FloatMinEqualsMaxWithMaxExclusive_ThrowsIndexOutOfRange()
+		{
+			var minMax = (floatP)2.5f;
+
+			Assert.Throws<IndexOutOfRangeException>(() => _rngService.Range(minMax, minMax, false));
+		}
+
+		[Test]
 		public void Restore_ToPastCount_ReproducesSequence()
 		{
 			_ = _rngService.Next;
