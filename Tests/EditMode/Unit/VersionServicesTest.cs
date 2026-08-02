@@ -20,10 +20,10 @@ namespace GameLoversEditor.Services.Tests
 			};
 			var result = VersionServices.FormatInternalVersion(data);
 
-			Assert.That(result.Contains("debug"), Is.True);
-			Assert.That(result.Contains("abc"), Is.True);
-			Assert.That(result.Contains("main"), Is.True);
-			Assert.That(result.Contains("1"), Is.True);
+			Assert.IsTrue(result.Contains("debug"));
+			Assert.IsTrue(result.Contains("abc"));
+			Assert.IsTrue(result.Contains("main"));
+			Assert.IsTrue(result.Contains("1"));
 		}
 
 		[Test]
@@ -38,8 +38,8 @@ namespace GameLoversEditor.Services.Tests
 			};
 			var result = VersionServices.FormatInternalVersion(data);
 
-			Assert.That(result.EndsWith("."), Is.False);
-			Assert.That(result.Contains("abc"), Is.True);
+			Assert.IsFalse(result.EndsWith("."));
+			Assert.IsTrue(result.Contains("abc"));
 		}
 	}
 }
