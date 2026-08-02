@@ -19,6 +19,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: TimeService.DateTimeUtcFromUnixTime treats its argument as milliseconds since the Unix epoch, matching
+		// UnixTimeNow.
+		// RCR: TimeService.cs DateTimeUtcFromUnixTime — add the value as seconds instead of milliseconds → RED (the round
+		// trip is off by ~1000x). Also reddens UnityTime_Convertions. 2026-08-02
 		public void DateTime_Convertions_Successfully()
 		{
 			Assert.GreaterOrEqual(ErrorValue, (_timeService.DateTimeUtcFromUnityTime(_timeService.UnityTimeNow) - _timeService.DateTimeUtcNow).TotalMilliseconds);
@@ -26,6 +30,11 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: TimeService.UnityTimeFromDateTimeUtc/FromUnixTime rebase onto _initialUnityTime so a converted
+		// instant lands near UnityTimeNow.
+		// RCR: TimeService.cs UnityTimeFromDateTimeUtc — add +1000f to the returned offset → RED. NOTE the assertion is
+		// ONE-SIDED (`GreaterOrEqual(ErrorValue, diff)`), so it only catches conversions that grow: negating
+		// `_initialUnityTime` instead was observed to stay GREEN. A regression that shrinks the conversion is invisible.
 		public void UnityTime_Convertions_Successfully()
 		{
 			Assert.GreaterOrEqual(ErrorValue, _timeService.UnityTimeFromDateTimeUtc(_timeService.DateTimeUtcNow) - _timeService.UnityTimeNow);
@@ -33,6 +42,11 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: TimeService.UnixTimeFromDateTimeUtc returns milliseconds since the Unix epoch, the unit UnixTimeNow
+		// reports in.
+		// RCR: TimeService.cs UnixTimeFromDateTimeUtc — add +100000L to the result → RED. NOTE as with the sibling
+		// above, the assertion is one-sided: switching TotalMilliseconds to TotalSeconds (a 1000x SHRINK) was observed
+		// to stay GREEN. Both fixtures want a two-sided bound on the absolute difference.
 		public void UnixTime_Convertions_Successfully()
 		{
 			Assert.GreaterOrEqual(ErrorValue, _timeService.UnixTimeFromDateTimeUtc(_timeService.DateTimeUtcNow) - _timeService.UnixTimeNow);
@@ -40,6 +54,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: TimeService.DateTimeUtcNow folds the accumulated _extraTime into the reported wall clock.
+		// RCR: TimeService.cs DateTimeUtcNow — drop the `_extraTime` term → RED (DateTimeUtcNow no longer reaches dateTime
+		// + 50.5s). 2026-08-02
 		public void AddTime_AllTimeTypes_Successfully()
 		{
 			var extraTime = 50.5f;
@@ -56,6 +73,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: TimeService.AddTime accumulates exactly the requested offset, so UnityTimeNow lands within tolerance of
+		// initial + delta.
+		// RCR: TimeService.cs AddTime — double the accumulated offset → RED (the Within(0.01) tolerance assertion fails
+		// while the coarser Less assertion still passes). 2026-08-02
 		public void AddTime_NegativeValue_SubtractsTime()
 		{
 			var initialUnityTime = _timeService.UnityTimeNow;
@@ -68,6 +89,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: TimeService.SetInitialTime rebases the clock onto the supplied DateTime.
+		// RCR: TimeService.cs SetInitialTime — drop the `_initialTime` assignment → RED (DateTimeUtcNow stays on the
+		// constructor's DateTime.Now, years away from 2025-01-01). 2026-08-02
 		public void SetInitialTime_ResetsTimeBase()
 		{
 			// SetInitialTime acts as a "reset" by synchronizing the time base

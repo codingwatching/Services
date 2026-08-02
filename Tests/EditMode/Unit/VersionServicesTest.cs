@@ -9,6 +9,9 @@ namespace GameLoversEditor.Services.Tests
 	public class VersionServicesTest
 	{
 		[Test]
+		// ADMIT: VersionServices.FormatInternalVersion appends the build type suffix when one is present.
+		// RCR: VersionServices.cs FormatInternalVersion — drop the build-type append → RED (the result no longer contains
+		// "debug"). 2026-08-02
 		public void FormatInternalVersion_WithBuildType_IncludesBuildType()
 		{
 			var data = new VersionServices.VersionData
@@ -27,6 +30,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: VersionServices.FormatInternalVersion omits the suffix entirely when BuildType is empty, so the string
+		// never ends in a bare dot.
+		// RCR: VersionServices.cs FormatInternalVersion — drop the emptiness guard → RED (the result ends with ".").
+		// 2026-08-02
 		public void FormatInternalVersion_WithoutBuildType_OmitsBuildType()
 		{
 			var data = new VersionServices.VersionData

@@ -53,6 +53,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AssetResolverService.UnloadAssets<TId,TAsset>(bool) warns and returns instead of throwing when the asset
+		// type was never registered.
+		// RCR: AssetResolverService.cs UnloadAssets(bool) — suppress the Debug.LogWarning → RED (LogAssert.Expect(Warning)
+		// is unmet). Also reddens UnloadAssets_ClearReferences_RemovesMap. 2026-08-02
 		public void UnloadAssets_UnknownType_DoesNotThrow()
 		{
 			LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(".*"));
@@ -60,6 +64,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AssetResolverService.UnloadAssets<TId,TAsset>(bool) drops the id-map entry when clearReferences is set.
+		// RCR: AssetResolverService.cs UnloadAssets(bool) — skip the map removal → RED (the follow-up call still resolves
+		// the map, so the expected warning never fires). 2026-08-02
 		public void UnloadAssets_ClearReferences_RemovesMap()
 		{
 			var assetRef = new AssetReference();
@@ -94,6 +101,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AssetResolverService.AddDebugConfigs stores the error Material used by SelectAsset's not-loaded fallback.
+		// RCR: AssetResolverService.cs AddDebugConfigs — null the `_errorMaterial` assignment → RED (the reflected field
+		// is null, AreSame fails). 2026-08-02
 		public void AddDebugConfigs_StoresAllProvided()
 		{
 			var shader = Shader.Find("Standard") ?? Shader.Find("Unlit/Color");
@@ -175,6 +185,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AssetResolverService.LoadSceneAsync<TId> throws MissingMemberException when no scene AssetReference was
+		// registered for the id.
+		// RCR: AssetResolverService.cs LoadSceneAsync<TId> — return default instead of throwing → RED (no
+		// MissingMemberException is caught). 2026-08-02
 		public async System.Threading.Tasks.Task LoadSceneAsync_UnknownId_ThrowsMissingMember()
 		{
 			MissingMemberException caught = null;
@@ -191,6 +205,11 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AssetResolverService.RequestAsset<TId,TAsset,TData> throws MissingMemberException when no AssetReference
+		// was registered for the id.
+		// RCR: AssetResolverService.cs RequestAsset<TId,TAsset,TData> — return null instead of throwing → RED (no
+		// MissingMemberException is caught). Also reddens the two-parameter overload's test, which delegates here.
+		// 2026-08-02
 		public async System.Threading.Tasks.Task RequestAsset_ThreeParamWithData_UnknownId_ThrowsMissingMember()
 		{
 			MissingMemberException caught = null;
@@ -207,6 +226,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AssetResolverService.LoadAllAssets<TId,TAsset> throws MissingMemberException when the asset type was
+		// never registered.
+		// RCR: AssetResolverService.cs LoadAllAssets<TId,TAsset> — return the empty list instead of throwing → RED (no
+		// MissingMemberException is caught). 2026-08-02
 		public async System.Threading.Tasks.Task LoadAllAssets_UnknownAssetType_ThrowsMissingMember()
 		{
 			MissingMemberException caught = null;
@@ -223,6 +246,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AssetResolverService.UnloadSceneAsync<TId> logs a warning and completes rather than throwing for an
+		// unregistered scene id.
+		// RCR: AssetResolverService.cs UnloadSceneAsync<TId> — suppress the Debug.LogWarning → RED
+		// (LogAssert.Expect(Warning) is unmet). 2026-08-02
 		public async System.Threading.Tasks.Task UnloadSceneAsync_UnknownId_LogsWarningAndCompletes()
 		{
 			LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(".*"));

@@ -47,6 +47,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: CommandService<TGameLogic>.ExecuteCommand invokes the command with the injected game logic and message
+		// broker.
+		// RCR: CommandService.cs ExecuteCommand — drop the `command.Execute(...)` call → RED (Received().CallMockup(1) is
+		// never satisfied). 2026-08-02
 		public void ExecuteCommand_Successfully()
 		{
 			var payload = 1;

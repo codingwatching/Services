@@ -45,6 +45,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.Spawn() runs the IPoolEntitySpawn lifecycle hook on the entity it hands out.
+		// RCR: ObjectPool.cs Spawn() — drop the `CallOnSpawned(entity)` call → RED (Received().OnSpawn() is never
+		// satisfied). Also reddens Spawn_ZeroInitialSize_Successfully. 2026-08-02
 		public void Spawn_Successfully()
 		{
 			var newEntity = _pool.Spawn();
@@ -55,6 +58,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.Spawn<TData> runs the typed IPoolEntitySpawn<TData> hook in addition to the untyped
+		// one.
+		// RCR: ObjectPool.cs Spawn<TData> — drop the `CallOnSpawned(entity, data)` call → RED (Received().OnSpawn(obj) is
+		// never satisfied). 2026-08-02
 		public void Spawn_WithData_Successfully()
 		{
 			var obj = new object();
@@ -66,6 +73,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.SpawnEntity instantiates a fresh entity when the free stack is empty instead of popping
+		// it.
+		// RCR: ObjectPool.cs SpawnEntity — pop unconditionally → RED (InvalidOperationException 'Stack empty' on a zero-
+		// init pool). Also reddens the other zero-init fixtures in this file. 2026-08-02
 		public void Spawn_ZeroInitialSize_Successfully()
 		{
 			var pool = new ObjectPool<IMockEntity>(0, () => _mockEntity);
@@ -77,6 +88,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.Despawn runs the IPoolEntityDespawn hook on a successfully returned entity.
+		// RCR: ObjectPool.cs Despawn(T) — drop the `CallOnDespawned(entity)` call → RED (Received().OnDespawn() is never
+		// satisfied). Also reddens DespawnAll_Successfully. 2026-08-02
 		public void Despawn_Successfully()
 		{
 			_pool.Spawn();
@@ -122,6 +136,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.Despawn reports false for an entity that was never spawned from this pool.
+		// RCR: ObjectPool.cs Despawn(T) — return true from the reject branch → RED (Assert.IsFalse fails). Note: deleting
+		// the `SpawnedEntities.Remove` term instead hangs Despawn(bool, Func). 2026-08-02
 		public void Despawn_NotSpawnedObject_ReturnsFalse()
 		{
 			Assert.IsFalse(_pool.Despawn(_mockEntity));
@@ -129,6 +146,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.DespawnAll actually despawns each tracked entity rather than just walking the list.
+		// RCR: ObjectPool.cs DespawnAll — drop the `Despawn(SpawnedEntities[i])` call → RED (neither entity receives
+		// OnDespawn). 2026-08-02
 		public void DespawnAll_Successfully()
 		{
 			var newEntity1 = _pool.Spawn();
@@ -141,6 +161,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.Clear returns the pre-instantiated free-stack entities as well as the spawned ones.
+		// RCR: ObjectPool.cs Clear — drop the `ret.AddRange(_stack)` call → RED (0 returned instead of the 5 pre-
+		// instantiated entities). 2026-08-02
 		public void Clear_Successfully()
 		{
 			var clearedEntities = _pool.Clear();
@@ -149,12 +172,18 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>'s constructor stores the sample entity that SampleEntity exposes.
+		// RCR: ObjectPool.cs ObjectPoolBase<T>(uint, T, Func) — null the `_sampleEntity` assignment → RED (SampleEntity is
+		// null, not the mock). 2026-08-02
 		public void SampleEntity_ReturnsSampleEntity()
 		{
 			Assert.AreSame(_mockEntity, _pool.SampleEntity);
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.SpawnedReadOnly exposes the live SpawnedEntities backing list, not a detached copy.
+		// RCR: ObjectPool.cs SpawnedReadOnly — return a fresh empty list → RED (count 0 and no element to compare). Also
+		// reddens the other SpawnedReadOnly-count assertions in this fixture. 2026-08-02
 		public void SpawnedReadOnly_ReturnsSpawnedEntities()
 		{
 			var entity = _pool.Spawn();
@@ -166,6 +195,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.IsSpawned returns true for the first spawned entity satisfying the predicate and false
+		// otherwise.
+		// RCR: ObjectPool.cs IsSpawned — invert the predicate test → RED (the matching probe returns false and the always-
+		// false probe returns true). 2026-08-02
 		public void IsSpawned_ReturnsTrueWhenMatch()
 		{
 			var entity = _pool.Spawn();
@@ -184,6 +217,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.Despawn(bool, Func) reports false when the predicate matched nothing.
+		// RCR: ObjectPool.cs Despawn(bool, Func) — seed the result accumulator to true → RED (Assert.IsFalse fails while
+		// the entity correctly survives). 2026-08-02
 		public void Despawn_WithCondition_NoMatch_ReturnsFalse()
 		{
 			_pool.Spawn();
@@ -203,6 +239,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.Despawn(bool, Func) steps the index back after a removal so adjacent distinct matches
+		// are not skipped.
+		// RCR: ObjectPool.cs Despawn(bool, Func) — delete the `i--` step-back → RED (only the first of two distinct
+		// entities is despawned). Also reddens Despawn_WithCondition_AllMatching_DespawnsAll. 2026-08-02
 		public void Despawn_WithCondition_DistinctMatchingEntities_AllDespawn()
 		{
 			// Regression: Despawn_WithCondition_AllMatching_DespawnsAll spawns the same _mockEntity
@@ -220,6 +260,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.Despawn(bool, Func) skips predicate-rejected entities so non-matching neighbours
+		// survive the step-back walk.
+		// RCR: ObjectPool.cs Despawn(bool, Func) — delete the predicate skip → RED (the keeper is despawned too, count 0).
+		// Also reddens Despawn_WithCondition_NoMatch_ReturnsFalse. 2026-08-02
 		public void Despawn_WithCondition_PartialMatch_NonMatchingSurvives()
 		{
 			// Confirms the iteration step-back after a successful despawn doesn't spuriously remove
@@ -234,6 +278,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.Reset re-seeds _sampleEntity with the new sample after disposing the old contents.
+		// RCR: ObjectPool.cs Reset — drop the `_sampleEntity = sampleEntity` assignment → RED (SampleEntity still points
+		// at the original mock). 2026-08-02
 		public void Reset_ClearsAndReinitializes()
 		{
 			_pool.Spawn();
@@ -247,6 +294,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.SpawnEntity reuses the pre-instantiated free stack, so the Func-only ctor's factory is
+		// invoked exactly initSize + 1 times.
+		// RCR: ObjectPool.cs SpawnEntity — always instantiate instead of popping → RED (invocations is 7, not 4, after
+		// three spawns). 2026-08-02
 		public void ObjectPool_FuncOnlyCtor_UsesProvidedFactory()
 		{
 			var invocations = 0;
