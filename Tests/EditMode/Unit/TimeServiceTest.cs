@@ -10,6 +10,8 @@ namespace GameLoversEditor.Services.Tests
 	public class TimeServiceTest
 	{
 		private const float ErrorValue = 0.01f;
+		// Unix/DateTime conversions are compared in MILLISECONDS, so they need their own tolerance.
+		private const double UnixErrorMillis = 50d;
 		private TimeService _timeService;
 
 		[SetUp]
@@ -25,32 +27,30 @@ namespace GameLoversEditor.Services.Tests
 		// trip is off by ~1000x). Also reddens UnityTime_Convertions. 2026-08-02
 		public void DateTime_Convertions_Successfully()
 		{
-			Assert.GreaterOrEqual(ErrorValue, (_timeService.DateTimeUtcFromUnityTime(_timeService.UnityTimeNow) - _timeService.DateTimeUtcNow).TotalMilliseconds);
-			Assert.GreaterOrEqual(ErrorValue, (_timeService.DateTimeUtcFromUnixTime(_timeService.UnixTimeNow) - _timeService.DateTimeUtcNow).TotalMilliseconds);
+			Assert.LessOrEqual(Math.Abs((_timeService.DateTimeUtcFromUnityTime(_timeService.UnityTimeNow) - _timeService.DateTimeUtcNow).TotalMilliseconds), UnixErrorMillis);
+			Assert.LessOrEqual(Math.Abs((_timeService.DateTimeUtcFromUnixTime(_timeService.UnixTimeNow) - _timeService.DateTimeUtcNow).TotalMilliseconds), UnixErrorMillis);
 		}
 
 		[Test]
 		// ADMIT: TimeService.UnityTimeFromDateTimeUtc/FromUnixTime rebase onto _initialUnityTime so a converted
-		// instant lands near UnityTimeNow.
-		// RCR: TimeService.cs UnityTimeFromDateTimeUtc — add +1000f to the returned offset → RED. NOTE the assertion is
-		// ONE-SIDED (`GreaterOrEqual(ErrorValue, diff)`), so it only catches conversions that grow: negating
-		// `_initialUnityTime` instead was observed to stay GREEN. A regression that shrinks the conversion is invisible.
+		// instant lands within ErrorValue of UnityTimeNow in EITHER direction.
+		// RCR: TimeService.cs UnityTimeFromDateTimeUtc — negate the `+ _initialUnityTime` term → RED (isolated).
+		// The bound is two-sided deliberately: this exact shrink passed unnoticed under a one-sided assertion.
 		public void UnityTime_Convertions_Successfully()
 		{
-			Assert.GreaterOrEqual(ErrorValue, _timeService.UnityTimeFromDateTimeUtc(_timeService.DateTimeUtcNow) - _timeService.UnityTimeNow);
-			Assert.GreaterOrEqual(ErrorValue, _timeService.UnityTimeFromUnixTime(_timeService.UnixTimeNow) - _timeService.UnityTimeNow);
+			Assert.LessOrEqual(Math.Abs(_timeService.UnityTimeFromDateTimeUtc(_timeService.DateTimeUtcNow) - _timeService.UnityTimeNow), ErrorValue);
+			Assert.LessOrEqual(Math.Abs(_timeService.UnityTimeFromUnixTime(_timeService.UnixTimeNow) - _timeService.UnityTimeNow), ErrorValue);
 		}
 
 		[Test]
-		// ADMIT: TimeService.UnixTimeFromDateTimeUtc returns milliseconds since the Unix epoch, the unit UnixTimeNow
-		// reports in.
-		// RCR: TimeService.cs UnixTimeFromDateTimeUtc — add +100000L to the result → RED. NOTE as with the sibling
-		// above, the assertion is one-sided: switching TotalMilliseconds to TotalSeconds (a 1000x SHRINK) was observed
-		// to stay GREEN. Both fixtures want a two-sided bound on the absolute difference.
+		// ADMIT: TimeService.UnixTimeFromDateTimeUtc returns MILLISECONDS since the epoch, the unit UnixTimeNow
+		// reports in — hence UnixErrorMillis rather than the seconds-scale ErrorValue.
+		// RCR: TimeService.cs UnixTimeFromDateTimeUtc — return TotalSeconds instead of TotalMilliseconds → RED
+		// (isolated). That 1000x shrink passed under the previous one-sided assertion.
 		public void UnixTime_Convertions_Successfully()
 		{
-			Assert.GreaterOrEqual(ErrorValue, _timeService.UnixTimeFromDateTimeUtc(_timeService.DateTimeUtcNow) - _timeService.UnixTimeNow);
-			Assert.GreaterOrEqual(ErrorValue, _timeService.UnixTimeFromUnityTime(_timeService.UnityTimeNow) - _timeService.UnixTimeNow);
+			Assert.LessOrEqual(Math.Abs(_timeService.UnixTimeFromDateTimeUtc(_timeService.DateTimeUtcNow) - _timeService.UnixTimeNow), UnixErrorMillis);
+			Assert.LessOrEqual(Math.Abs(_timeService.UnixTimeFromUnityTime(_timeService.UnityTimeNow) - _timeService.UnixTimeNow), UnixErrorMillis);
 		}
 
 		[Test]
