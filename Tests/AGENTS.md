@@ -282,15 +282,16 @@ Why both keys: `RunSettings.Instance` is a lazy-loaded singleton (`ResourcesLoad
 
 ## 13. Coverage Register
 
-**Baseline — runtime assembly: 84.4% (1050/1244), measured 2026-08-02.**
+**Baseline — runtime assembly: 84.4% (1050/1244), measured 2026-08-04.**
 Editor assembly: **4.8% (153/3162)** — near-zero by policy; the ACCEPTED (iii) rows below are why.
+Repo-wide runtime coverage is **74.1% (6609/8922)** across all 11 assemblies.
 
-Regenerate with `Tools/coverage.sh`, which prints the runtime/Editor split.
-Steer by the **runtime** figure: Editor code is ~48% of the repo's coverable
-lines and is accepted-untestable, so the combined number (41.0%) can never
-meaningfully move. Do not compare against any figure recorded before this date —
-earlier reports were produced without `-debugCodeOptimization` (Release mode
-shrinks the denominator ~40%) or with test/sample assemblies leaking into scope.
+Regenerate with `Tools/coverage.sh`, which prints the runtime/Editor split. Steer by
+the **runtime** figure: Editor code is ~48% of coverable lines and accepted-untestable,
+so the combined number (41.1%) can never meaningfully move. Sanity-check any rerun by
+confirming `MathfloatP` reports ~1002 coverable lines — a smaller figure means
+`-debugCodeOptimization` was missing and the denominator silently shrank ~40%.
+
 
 Every untested symbol worth naming is either ACCEPTED (justified — do not
 re-report) or OPEN (a real gap, owed a test). An untested symbol in neither state
@@ -321,6 +322,10 @@ The count of OPEN rows is the honest coverage-debt number.
 | `ServicesScaffolders` `#if UNITY_6000_4_OR_NEWER` guard (`Editor/Scaffolders/ServicesScaffolders.cs`) | ACCEPTED | (iii) harness-impossible — blocker: compile-time branch, only one side is reachable per Unity version, so a single test run can only ever exercise one branch of the `#if`. | 2026-07-31 |
 | `VersionServices.IsOutdatedVersion` (`Runtime/VersionServices.cs`) | OPEN | Owed: only coverage was a local reimplementation of the algorithm in `VersionServicesTest.cs`; a real test against the actual method is owed. | 2026-07-31 |
 | `AddressableIdsGeneratorUtils.ResolveSanitizedEnumName` 3-way collision (`Editor/AddressableIds/AddressableIdsGeneratorUtils.cs:531-539`) | OPEN | The two-address collision was fixed 2026-08-01 (`AppendAddressEnumMembers` now emits the disambiguated `name`). A deeper edge case remains: a THIRD address colliding with the same base name AND filetype re-derives the identical `"{name}_{filetype}"` suffix (the fallback only ever adds one suffix level and the collision check is against the original `name`, not against previously-suffixed candidates), so 3+ colliding addresses can still emit duplicates. Owed: either a numeric fallback (`_2`, `_3`, ...) or checking collision against the full history of emitted names, not just base names. | 2026-08-01 |
+
+| `ObjectPoolBase<T>.Despawn` `onlyFirst` break (`Runtime/Pooling/ObjectPool.cs`) | OPEN | Owed: the branch is uncovered **repo-wide**, proven not inferred — inverting `if (onlyFirst)` left `Despawn_WithCondition_FirstOnly_Successfully` GREEN (the EditMode fixture spawns one entity; the PlayMode typed sibling's predicate matches only one). A test must spawn two matching entities and assert exactly one is despawned. | 2026-08-04 |
+| `TimeService.UnityTimeFromDateTimeUtc` / `UnixTimeFromDateTimeUtc` shrink direction (`Runtime/TimeService.cs`) | OPEN | Owed: both fixtures assert `GreaterOrEqual(ErrorValue, converted - now)`, which bounds the difference only from ABOVE. Negating `_initialUnityTime`, and swapping `TotalMilliseconds` for `TotalSeconds` (a 1000x shrink), were both observed GREEN. Needs a two-sided bound on the absolute difference. | 2026-08-04 |
+| `RngService.Peekfloat` state-advance detection (`Runtime/RngService.cs`) | OPEN | Owed: `Peekfloat` draws over `(0, floatP.MaxValue)`, where consecutive draws saturate to the same `floatP` — so making `PeekRange` consume the LIVE state was observed GREEN. The test is precision-blind to the advance its name claims to catch. | 2026-08-04 |
 
 ## 14. Update Policy
 Update this file when:
