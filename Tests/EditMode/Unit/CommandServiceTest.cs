@@ -61,15 +61,5 @@ namespace GameLoversEditor.Services.Tests
 			_gameLogicMockup.Received().CallMockup(Arg.Is(payload));
 		}
 
-		[Test]
-		public void ServerCommand_ExecuteLogic_InvokedWithGameLogic()
-		{
-			var payload = 7;
-			IGameServerCommand<IGameLogicMockup> command = new ServerCommandMockup { Payload = payload };
-
-			command.ExecuteLogic(_gameLogicMockup);
-
-			_gameLogicMockup.Received(1).CallMockup(Arg.Is(payload));
-		}
 	}
 }

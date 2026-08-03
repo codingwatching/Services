@@ -439,6 +439,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: TickService does NOT enforce a singleton -- the ctor's `_tickObject != null` guard reads an instance
+		// field and is therefore always false, so each construction adds its own TickServiceMonoBehaviour.
+		// RCR: none exists -- the assertion pins the ABSENCE of singleton enforcement; only a structural change
+		// (making the guard static) flips it. Unfalsifiable one line at a time, not a duplicate.
 		public void MultipleInstances_CreateMultipleGameObjects()
 		{
 			// Note: The service doesn't enforce singleton, but it throws if _tickObject is already set

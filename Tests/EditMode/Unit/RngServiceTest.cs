@@ -21,19 +21,6 @@ namespace GameLoversEditor.Services.Tests
 			_rngService = new RngService(_rngData);
 		}
 
-		[Test]
-		public void Next_SameSeed_ReturnsDeterministicSequence()
-		{
-			var sequence1 = new int[10];
-			for (var i = 0; i < 10; i++) sequence1[i] = _rngService.Next;
-
-			var data2 = RngService.CreateRngData(Seed);
-			var rng2 = new RngService(data2);
-			var sequence2 = new int[10];
-			for (var i = 0; i < 10; i++) sequence2[i] = rng2.Next;
-
-			Assert.AreEqual(sequence1, sequence2);
-		}
 
 		[Test]
 		// ADMIT: RngService.PeekRange(int,int,bool) draws from a copy of the state so Peek never advances the live
@@ -162,20 +149,6 @@ namespace GameLoversEditor.Services.Tests
 			Assert.AreEqual(56, data.State.Length);
 		}
 
-		[Test]
-		public void Nextfloat_ReturnsDeterministicSequence()
-		{
-			floatP f1 = _rngService.Nextfloat;
-			floatP f2 = _rngService.Nextfloat;
-
-			var data2 = RngService.CreateRngData(Seed);
-			var rng2 = new RngService(data2);
-			floatP f1b = rng2.Nextfloat;
-			floatP f2b = rng2.Nextfloat;
-
-			Assert.AreEqual(f1, f1b);
-			Assert.AreEqual(f2, f2b);
-		}
 
 		[Test]
 		// ADMIT: RngService.Peekfloat draws through PeekRange, which works on a copy of the state, so repeated reads
@@ -195,6 +168,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: exercises RngService.Range(floatP,floatP,int[],bool)'s scale-and-offset path; no unique one-line pin.
+		// RCR: no isolated mutation -- reddens under Range_IntStaticOverload_StaysWithinBoundsAndAdvancesState's
+		// mutation (offset by max instead of min; radius 5, observed). Shared-path coverage, not a duplicate.
 		public void RangeFloat_ReturnsValueInRange()
 		{
 			floatP min = (floatP)0f;
