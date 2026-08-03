@@ -26,6 +26,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.Update forwards the elapsed time as `time - LastTickTime`, so a subscriber must never see a
+		// negative deltaTime.
+		// RCR: TickService.cs Update — flip the subtraction to `LastTickTime - time` → RED (receivedDelta is negative).
+		// Also reddens the LateUpdate and RealTime siblings, which read the same sign. 2026-08-02
 		public IEnumerator SubscribeOnUpdate_ReceivesDeltaTime()
 		{
 			float receivedDelta = -1f;
@@ -38,6 +42,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.Update rate-limits a buffered subscriber by skipping until `LastTickTime + DeltaTime` has
+		// elapsed.
+		// RCR: TickService.cs Update — drop the `+ tickData.DeltaTime` term from the skip guard → RED (callCount is
+		// already ≥1 at the half-interval assertion). 2026-08-02
 		public IEnumerator SubscribeOnUpdate_WithDeltaBuffer_InvokesAtInterval()
 		{
 			int callCount = 0;
@@ -52,6 +60,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.Update carries the modulo remainder back into LastTickTime so a buffered subscriber does not
+		// drift a whole interval per tick.
+		// RCR: TickService.cs Update — replace the overflow with `-tickData.DeltaTime` so LastTickTime jumps forward
+		// instead of back → RED (only one tick lands inside the 2.5-interval wait). 2026-08-02
 		public IEnumerator SubscribeOnUpdate_TimeOverflow_CarriesOverflow()
 		{
 			float interval = 0.05f;
@@ -89,6 +101,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.Update reads Time.realtimeSinceStartup for a RealTime subscriber, so ticking survives
+		// Time.timeScale == 0.
+		// RCR: TickService.cs Update — hard-code `var time = Time.time;` → RED (deltaTime is ≤0 under timeScale 0 because
+		// LastTickTime was stamped from realtime). 2026-08-02
 		public IEnumerator SubscribeOnUpdate_RealTime_UsesUnscaledTime()
 		{
 			float initialTimeScale = Time.timeScale;
@@ -105,6 +121,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.UnsubscribeOnUpdate matches on delegate identity, so a subscriber that unsubscribes itself
+		// from inside its own callback is not ticked again.
+		// RCR: TickService.cs UnsubscribeOnUpdate — invert the `Action == action` match to `!=` → RED (callCount is 2, not
+		// 1). Also reddens Unsubscribe_UmbrellaOverload. 2026-08-02
 		public IEnumerator UnsubscribeOnUpdate_DuringCallback_SafelyRemoves()
 		{
 			int callCount = 0;
@@ -130,6 +150,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.UnsubscribeAll() fans out to all three per-list clears, including the Update list.
+		// RCR: TickService.cs UnsubscribeAll() — change the `UnsubscribeAllOnUpdate()` call to a second
+		// `UnsubscribeAllOnFixedUpdate()` → RED (both update subscribers still tick). 2026-08-02
 		public IEnumerator UnsubscribeAll_RemovesAllSubscribers()
 		{
 			var sub1 = new TickSubscriber();
@@ -147,6 +170,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.UnsubscribeAll(object) fans out to the per-list subscriber-scoped removals, including the
+		// Update list.
+		// RCR: TickService.cs UnsubscribeAll(object) — change the `UnsubscribeAllOnUpdate(subscriber)` call to
+		// `UnsubscribeAllOnFixedUpdate(subscriber)` → RED (sub1 keeps ticking). 2026-08-02
 		public IEnumerator UnsubscribeAll_BySubscriber_RemovesOnlyThatSubscriber()
 		{
 			var sub1 = new TickSubscriber();
@@ -164,6 +191,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.Dispose destroys the DontDestroyOnLoad host GameObject it created in the constructor.
+		// RCR: TickService.cs Dispose — drop the `Object.Destroy(_tickObject.gameObject)` call → RED (the host count stays
+		// at initialCount + 1 after Dispose). 2026-08-02
 		public IEnumerator Dispose_DestroysGameObject()
 		{
 			var initialCount = Object.FindObjectsByType<TickServiceMonoBehaviour>().Length;
@@ -178,6 +208,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.OnFixedUpdate forwards Time.fixedTime to every fixed-update subscriber, so the received value
+		// is never negative.
+		// RCR: TickService.cs OnFixedUpdate — forward `-1f` instead of `Time.fixedTime` → RED (receivedDelta is negative).
+		// 2026-08-02
 		public IEnumerator SubscribeOnFixedUpdate_ReceivesDeltaTime()
 		{
 			float receivedDelta = -1f;
@@ -190,6 +224,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService's constructor wires the host MonoBehaviour's LateUpdate callback to the late-update list fan-
+		// out.
+		// RCR: TickService.cs TickService() — wire OnLateUpdate to OnFixedUpdate instead → RED (receivedDelta stays -1).
+		// Also reddens the two other late-update tests. 2026-08-02
 		public IEnumerator SubscribeOnLateUpdate_ReceivesDeltaTime()
 		{
 			float receivedDelta = -1f;
@@ -202,6 +240,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.UnsubscribeOnFixedUpdate matches on delegate identity before removing the fixed-update entry.
+		// RCR: TickService.cs UnsubscribeOnFixedUpdate — invert the `Action == action` match to `!=` → RED (callCount
+		// keeps rising after unsubscribe). Also reddens Unsubscribe_UmbrellaOverload. 2026-08-02
 		public IEnumerator UnsubscribeOnFixedUpdate_RemovesCallback()
 		{
 			int callCount = 0;
@@ -221,6 +262,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.UnsubscribeOnLateUpdate matches on delegate identity before removing the late-update entry.
+		// RCR: TickService.cs UnsubscribeOnLateUpdate — invert the `Action == action` match to `!=` → RED (callCount keeps
+		// rising after unsubscribe). Also reddens Unsubscribe_UmbrellaOverload. 2026-08-02
 		public IEnumerator UnsubscribeOnLateUpdate_RemovesCallback()
 		{
 			int callCount = 0;
@@ -240,6 +284,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.UnsubscribeAllOnUpdate() clears the update list, not one of the sibling lists.
+		// RCR: TickService.cs UnsubscribeAllOnUpdate() — clear _onFixedUpdateList instead → RED (both subscribers still
+		// tick). Also reddens UnsubscribeAll_RemovesAllSubscribers, which routes through it. 2026-08-02
 		public IEnumerator UnsubscribeAllOnUpdate_RemovesAllUpdateSubscribers()
 		{
 			var sub1 = new TickSubscriber();
@@ -257,6 +304,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.UnsubscribeAllOnUpdate(object) removes the entries whose Subscriber matches, and only those.
+		// RCR: TickService.cs UnsubscribeAllOnUpdate(object) — invert the RemoveAll predicate to `!=` → RED (sub1 keeps
+		// ticking and sub2 is dropped). 2026-08-02
 		public IEnumerator UnsubscribeAllOnUpdate_BySubscriber_RemovesOnlyThatSubscriber()
 		{
 			var sub1 = new TickSubscriber();
@@ -274,6 +324,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.UnsubscribeAllOnFixedUpdate() clears the fixed-update list, not one of the sibling lists.
+		// RCR: TickService.cs UnsubscribeAllOnFixedUpdate() — clear _onLateUpdateList instead → RED (both fixed-update
+		// subscribers still tick). 2026-08-02
 		public IEnumerator UnsubscribeAllOnFixedUpdate_RemovesAllFixedUpdateSubscribers()
 		{
 			var sub1 = new TickSubscriber();
@@ -292,6 +345,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.UnsubscribeAllOnFixedUpdate(object) removes the entries whose Subscriber matches, and only
+		// those.
+		// RCR: TickService.cs UnsubscribeAllOnFixedUpdate(object) — invert the RemoveAll predicate to `!=` → RED (sub1
+		// keeps ticking and sub2 is dropped). 2026-08-02
 		public IEnumerator UnsubscribeAllOnFixedUpdate_BySubscriber_RemovesOnlyThatSubscriber()
 		{
 			var sub1 = new TickSubscriber();
@@ -310,6 +367,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.UnsubscribeAllOnLateUpdate() clears the late-update list, not one of the sibling lists.
+		// RCR: TickService.cs UnsubscribeAllOnLateUpdate() — clear _onFixedUpdateList instead → RED (both late-update
+		// subscribers still tick). 2026-08-02
 		public IEnumerator UnsubscribeAllOnLateUpdate_RemovesAllLateUpdateSubscribers()
 		{
 			var sub1 = new TickSubscriber();
@@ -328,6 +388,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.UnsubscribeAllOnLateUpdate(object) removes the entries whose Subscriber matches, and only
+		// those.
+		// RCR: TickService.cs UnsubscribeAllOnLateUpdate(object) — invert the RemoveAll predicate to `!=` → RED (sub1
+		// keeps ticking and sub2 is dropped). 2026-08-02
 		public IEnumerator UnsubscribeAllOnLateUpdate_BySubscriber_RemovesOnlyThatSubscriber()
 		{
 			var sub1 = new TickSubscriber();
@@ -346,6 +410,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: TickService.Unsubscribe(action) is the umbrella that forwards to all three per-list removals, including
+		// the fixed-update one.
+		// RCR: TickService.cs Unsubscribe — replace the `UnsubscribeOnFixedUpdate(action)` forward with a duplicate
+		// `UnsubscribeOnUpdate(action)` → RED (callCount keeps rising from FixedUpdate). 2026-08-02
 		public IEnumerator Unsubscribe_UmbrellaOverload_RemovesActionFromAllThreeUpdateLists()
 		{
 			int callCount = 0;

@@ -34,6 +34,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 		
 		[UnityTest]
+		// ADMIT: CoroutineService.StartCoroutine hands the routine to the host MonoBehaviour and returns its Coroutine
+		// handle.
+		// RCR: CoroutineService.cs StartCoroutine — return null without starting the routine → RED (_testValue stays 0).
+		// 2026-08-02
 		public IEnumerator StartCoroutine_Successfully()
 		{
 			const int testValue1 = 5;
@@ -44,6 +48,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 		
 		[UnityTest]
+		// ADMIT: CoroutineService.InternalCoroutine signals the AsyncCoroutine wrapper after the wrapped routine finishes.
+		// RCR: CoroutineService.cs InternalCoroutine — drop the `completed.Completed()` call → RED (IsCompleted false,
+		// OnComplete never fires). Also reddens the other natural-completion tests. 2026-08-02
 		public IEnumerator StartAsyncCoroutine_Successfully()
 		{
 			const int testValue1 = 5;
@@ -61,6 +68,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 		
 		[UnityTest]
+		// ADMIT: CoroutineService.StartAsyncCoroutine<T> seeds the AsyncCoroutine<T> payload with the caller's data.
+		// RCR: CoroutineService.cs StartAsyncCoroutine<T> — construct the wrapper with `default` instead of `data` → RED
+		// (the Action<T> callback receives 0, not 10). 2026-08-02
 		public IEnumerator StartAsyncCoroutine_WithData_Successfully()
 		{
 			const int testValue1 = 5;
@@ -78,6 +88,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 		
 		[UnityTest]
+		// ADMIT: CoroutineServiceMonoBehaviour.ExternalStopCoroutine is the only path that reaches Unity's
+		// MonoBehaviour.StopCoroutine for a service-owned handle.
+		// RCR: CoroutineService.cs ExternalStopCoroutine — make the body a no-op → RED (the routine completes and
+		// _testValue becomes 5). Also reddens StopAsyncCoroutine_Successfully. 2026-08-02
 		public IEnumerator StopCoroutine_Successfully()
 		{
 			const int testValue1 = 5;
@@ -93,6 +107,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 		
 		[UnityTest]
+		// ADMIT: CoroutineService.StopCoroutine forwards a live handle to the host after its guard passes, and stopping
+		// the raw handle leaves the async wrapper un-completed.
+		// RCR: CoroutineService.cs StopCoroutine — drop the forward to ExternalStopCoroutine → RED (routine finishes:
+		// IsCompleted true and testCompleted 10). Overlaps StopCoroutine_Successfully. 2026-08-02
 		public IEnumerator StopAsyncCoroutine_Successfully()
 		{
 			const int testValue1 = 5;
@@ -116,6 +134,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 		
 		[UnityTest]
+		// ADMIT: CoroutineService.StopAllCoroutines only bails out when the host is gone; with a live host it must reach
+		// the host's StopAllCoroutines.
+		// RCR: CoroutineService.cs StopAllCoroutines — invert the guard to `if (_serviceObject != null)` so it early-
+		// returns while alive → RED (both routines run to completion). 2026-08-02
 		public IEnumerator StopAllCoroutines_Successfully()
 		{
 			const int testValue1 = 5;
@@ -173,6 +195,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: CoroutineService.Dispose destroys the DontDestroyOnLoad host GameObject it created in the constructor.
+		// RCR: CoroutineService.cs Dispose — drop the `Object.Destroy(_serviceObject.gameObject)` call → RED (host count
+		// stays at initialCount + 1). 2026-08-02
 		public IEnumerator Dispose_DestroysHostGameObject()
 		{
 			var initialCount = Object.FindObjectsByType<CoroutineServiceMonoBehaviour>().Length;
@@ -191,6 +216,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: CoroutineService.Dispose guards on the already-nulled _serviceObject so a second Dispose is a no-op.
+		// RCR: CoroutineService.cs Dispose — delete the `if(_serviceObject == null) return;` guard → RED (the second
+		// Dispose throws NullReferenceException and DoesNotThrow fails). 2026-08-02
 		public IEnumerator Dispose_CalledTwice_DoesNotThrow()
 		{
 			var service = new CoroutineService();
@@ -201,6 +229,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: CoroutineService.StartDelayCall registers the caller's Action as the wrapper's completion callback before
+		// starting the delay routine.
+		// RCR: CoroutineService.cs StartDelayCall — register an empty lambda instead of `call` → RED (`called` stays false
+		// after the delay elapses). 2026-08-02
 		public IEnumerator StartDelayCall_Successfully()
 		{
 			bool called = false;
@@ -214,6 +246,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: CoroutineService.StartDelayCall<T> seeds the AsyncCoroutine<T> payload with the caller's data so the
+		// delayed Action<T> receives it.
+		// RCR: CoroutineService.cs StartDelayCall<T> — construct the wrapper with `default` instead of `data` → RED
+		// (received stays 0, not 99). 2026-08-02
 		public IEnumerator StartDelayCall_WithData_Successfully()
 		{
 			int received = 0;
@@ -229,6 +265,9 @@ namespace GameLoversEditor.Services.Tests
 		// Stopping via IAsyncCoroutine.StopCoroutine MUST flip IsCompleted/IsRunning so
 		// editor introspection (Services Explorer Coroutine tab) can drop stopped entries.
 		[UnityTest]
+		// ADMIT: AsyncCoroutine.StopCoroutine flips IsCompleted so editor introspection can drop stopped entries.
+		// RCR: CoroutineService.cs AsyncCoroutine.StopCoroutine — assign `IsCompleted = false` after stopping → RED
+		// (IsCompleted stays false). Also reddens AsyncCoroutineStop_CalledTwice_NoOps. 2026-08-02
 		public IEnumerator AsyncCoroutineStop_FlipsCompletedAndRunning()
 		{
 			IAsyncCoroutine asyncCoroutine = _coroutineService.StartAsyncCoroutine(TestCoroutine(5));
@@ -246,6 +285,10 @@ namespace GameLoversEditor.Services.Tests
 
 		// triggerOnComplete=true MUST invoke the user OnComplete callback.
 		[UnityTest]
+		// ADMIT: AsyncCoroutine.StopCoroutine(true) invokes the registered OnComplete callback via OnCompleteTrigger.
+		// RCR: CoroutineService.cs AsyncCoroutine.StopCoroutine — drop the OnCompleteTrigger() call from the
+		// triggerOnComplete branch → RED (testCompleted stays 0). Also reddens AsyncCoroutineStop_CalledTwice_NoOps.
+		// 2026-08-02
 		public IEnumerator AsyncCoroutineStop_TriggerOnCompleteTrue_InvokesUserCallback()
 		{
 			int testCompleted = 0;
@@ -261,6 +304,9 @@ namespace GameLoversEditor.Services.Tests
 
 		// triggerOnComplete=false MUST suppress the user OnComplete callback.
 		[UnityTest]
+		// ADMIT: AsyncCoroutine.StopCoroutine honours triggerOnComplete:false by suppressing the user OnComplete callback.
+		// RCR: CoroutineService.cs AsyncCoroutine.StopCoroutine — replace the `if (triggerOnComplete)` guard with `if
+		// (true)` → RED (testCompleted becomes 42). 2026-08-02
 		public IEnumerator AsyncCoroutineStop_TriggerOnCompleteFalse_SuppressesUserCallback()
 		{
 			int testCompleted = 0;
@@ -278,6 +324,10 @@ namespace GameLoversEditor.Services.Tests
 		// Regression guard for v2.0.0 bug where editor tracking lambda assigned via
 		// OnComplete(...) overwrote (or was overwritten by) user callbacks.
 		[UnityTest]
+		// ADMIT: AsyncCoroutine.OnCompleteTrigger invokes the user Action registered through OnComplete(Action), which
+		// editor tracking must never overwrite.
+		// RCR: CoroutineService.cs AsyncCoroutine.OnCompleteTrigger — drop the `_onComplete?.Invoke()` call → RED
+		// (userCallbackFired stays false). Broad: also reddens every other Action-callback test. 2026-08-02
 		public IEnumerator AsyncCoroutineOnComplete_RegisteredAfterCreation_FiresOnNaturalCompletion()
 		{
 			bool userCallbackFired = false;
@@ -294,6 +344,10 @@ namespace GameLoversEditor.Services.Tests
 		// guard prevents the user OnComplete callback from re-firing and prevents IsRunning
 		// state from being clobbered. Pairs with AsyncCoroutineStop_CalledTwice_NoOps below.
 		[UnityTest]
+		// ADMIT: AsyncCoroutine.Completed sets IsCompleted, which is what makes a later StopCoroutine a no-op after
+		// natural completion.
+		// RCR: CoroutineService.cs AsyncCoroutine.Completed — assign `IsCompleted = false` → RED (IsCompleted assertion
+		// fails and the later stop re-fires the callback). Also reddens the natural-completion siblings. 2026-08-02
 		public IEnumerator AsyncCoroutineStop_AfterNaturalCompletion_NoOps()
 		{
 			int callbackInvocations = 0;
@@ -316,6 +370,10 @@ namespace GameLoversEditor.Services.Tests
 		// is a no-op so the user OnComplete callback fires exactly once total. Without the
 		// IsCompleted guard, double-stop would fire OnComplete twice and confuse listeners.
 		[UnityTest]
+		// ADMIT: AsyncCoroutine.StopCoroutine early-returns when already completed, so a double stop fires the user
+		// callback exactly once.
+		// RCR: CoroutineService.cs AsyncCoroutine.StopCoroutine — delete the `if (IsCompleted) return;` guard → RED
+		// (callbackInvocations is 2). Also reddens AsyncCoroutineStop_AfterNaturalCompletion_NoOps. 2026-08-02
 		public IEnumerator AsyncCoroutineStop_CalledTwice_NoOps()
 		{
 			int callbackInvocations = 0;
@@ -336,6 +394,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: AsyncCoroutine<T>.OnCompleteTrigger reads the live Data property at completion time, not a construction-
+		// time snapshot.
+		// RCR: CoroutineService.cs AsyncCoroutine<T>.OnCompleteTrigger — invoke with `default` instead of `Data` → RED
+		// (observed stays 0). Also reddens the two other Action<T> payload tests. 2026-08-02
 		public IEnumerator AsyncCoroutineDataSetter_AfterStart_UpdatesPayload()
 		{
 			const int initialValue = 5;

@@ -50,6 +50,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: GameObjectPool.SpawnEntity re-activates the pooled GameObject that Instantiator deactivated on creation.
+		// RCR: GameObjectPool.cs GameObjectPool.SpawnEntity — drop the `entity.SetActive(true)` call → RED
+		// (instance.activeSelf is false). 2026-08-02
 		public IEnumerator Spawn_InstantiatesPrefab()
 		{
 			var instance = _pool.Spawn();
@@ -62,6 +65,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: GameObjectPool.PostDespawnEntity deactivates the GameObject as it returns to the pool.
+		// RCR: GameObjectPool.cs GameObjectPool.PostDespawnEntity — drop the `entity.SetActive(false)` call → RED
+		// (instance.activeSelf is still true after Despawn). 2026-08-02
 		public IEnumerator Despawn_DeactivatesGameObject()
 		{
 			var instance = _pool.Spawn();
@@ -73,6 +79,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: GameObjectPool.CallOnSpawned resolves IPoolEntitySpawn through GetComponent and invokes OnSpawn on the
+		// pooled instance.
+		// RCR: GameObjectPool.cs GameObjectPool.CallOnSpawned — drop the `poolEntity?.OnSpawn()` call → RED
+		// (mock.SpawnCount stays 0). 2026-08-02
 		public IEnumerator Spawn_InvokesIPoolEntitySpawn()
 		{
 			var instance = _pool.Spawn();
@@ -87,6 +97,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: GameObjectPool.Dispose destroys every GameObject returned by Clear(), spawned ones included.
+		// RCR: GameObjectPool.cs GameObjectPool.Dispose — drop the `Object.Destroy(obj)` call → RED (the spawned instance
+		// is still alive next frame). 2026-08-02
 		public IEnumerator Dispose_DestroysAllInstances()
 		{
 			var instance = _pool.Spawn();
@@ -99,6 +112,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: GameObjectPool.Dispose(true) destroys the sample entity the pool was seeded with.
+		// RCR: GameObjectPool.cs GameObjectPool.Dispose(bool) — drop the `Object.Destroy(SampleEntity)` call → RED
+		// (_sample survives Dispose(true)). 2026-08-02
 		public IEnumerator Dispose_WithSampleDestroy_DestroysSample()
 		{
 			_pool.Dispose(true);
@@ -109,6 +125,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: GameObjectPool.CallOnSpawned<TData> resolves IPoolEntitySpawn<TData> through GetComponent and forwards
+		// the spawn payload.
+		// RCR: GameObjectPool.cs GameObjectPool.CallOnSpawned<TData> — drop the `poolEntity?.OnSpawn(data)` call → RED
+		// (mock.LastSpawnData stays 0, not 42). 2026-08-02
 		public IEnumerator SpawnWithData_InvokesIPoolEntitySpawn()
 		{
 			var sampleWithData = new GameObject("SampleWithData");
