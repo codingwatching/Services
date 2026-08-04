@@ -439,11 +439,12 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
-		// ADMIT: TickService does NOT enforce a singleton -- the ctor's `_tickObject != null` guard reads an instance
-		// field and is therefore always false, so each construction adds its own TickServiceMonoBehaviour.
-		// RCR: TickService.cs -- `private readonly TickServiceMonoBehaviour _tickObject;` -> `private static
-		// TickServiceMonoBehaviour _tickObject;` -> RED (production's own ctor guard throws
-		// InvalidOperationException "initialized for the second time"). 2026-08-04
+		// ADMIT: TickService deliberately does NOT enforce a singleton -- every construction adds its own
+		// TickServiceMonoBehaviour host, which is what lets two services tick independently.
+		// RCR: TickService.cs ctor -- `_tickObject = gameObject.AddComponent<TickServiceMonoBehaviour>();` ->
+		// `... = Object.FindAnyObjectByType<TickServiceMonoBehaviour>() ?? gameObject.AddComponent<...>();`
+		// -> RED ("Expected: greater than or equal to 2"). Negative result: making `_tickObject` static no
+		// longer reddens this, since the dead ctor guard that mutation relied on is gone. 2026-08-04
 		public void MultipleInstances_CreateMultipleGameObjects()
 		{
 			var service1 = new TickService();
