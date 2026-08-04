@@ -185,7 +185,17 @@ symbol appears anywhere in the causal chain behind the assertion.
 **Two consequences, stated so RCR does not become theatre:**
 
 - A test with no `// RCR:` line — and no UNFALSIFIABLE exemption — is not trusted
-  coverage. In an audit it is a suspect by default.
+  coverage. In an audit it is a suspect by default. **`Smoke/` is exempt here too**, on the
+  same directory basis as §1: its defect class is "the assembly no longer loads", which has
+  no one-line mutation, so demanding an RCR line there flags those fixtures forever. The
+  exemption is the directory, not the assertion shape.
+- **"Unannotated" is three states, not one, and they need different actions.** A test with no
+  `// RCR:` line may have been (a) observed RED with the write-back lost, (b) seen reddening
+  only as collateral inside another test's blast radius, or (c) never probed. Only (c) needs a
+  probe; (a) needs the recorded observation written back; (b) is SHARED-PATH evidence, not a
+  unique pin. Check `.test-all/rcr/` before probing, and never write prepared annotation text
+  without a matching `RED-OK` for that test — prepared text also exists for tests that were
+  never probed, and writing it fabricates a verified claim.
 - **Benchmarks are included, inverted:** a performance test must be observed
   *changing its number* when the measured operation is removed from the measured
   body. A benchmark whose measured region does not contain the workload is a
@@ -340,6 +350,8 @@ The count of OPEN rows is the honest coverage-debt number.
 | `ObjectPoolBase<T>.Despawn` `onlyFirst` break (`Runtime/Pooling/ObjectPool.cs`) | OPEN | Owed: the branch is uncovered **repo-wide**, proven not inferred — inverting `if (onlyFirst)` left `Despawn_WithCondition_FirstOnly_Successfully` GREEN (the EditMode fixture spawns one entity; the PlayMode typed sibling's predicate matches only one). A test must spawn two matching entities and assert exactly one is despawned. | 2026-08-04 |
 | `TimeService.UnityTimeFromDateTimeUtc` / `UnixTimeFromDateTimeUtc` shrink direction (`Runtime/TimeService.cs`) | CLOSED | Closed 2026-08-04 by `07abdf1`: the three assertion pairs now bound `Math.Abs(converted - now)` from both sides. The 1000x `TotalMilliseconds`→`TotalSeconds` shrink and the `_initialUnityTime` negation are now both observed RED (unix comparisons use a separate `UnixErrorMillis`, since they are in milliseconds). | 2026-08-04 |
 | `RngService.Peekfloat` state-advance detection (`Runtime/RngService.cs`) | OPEN | Owed: `Peekfloat` draws over `(0, floatP.MaxValue)`, where consecutive draws saturate to the same `floatP` — so making `PeekRange` consume the LIVE state was observed GREEN. The test is precision-blind to the advance its name claims to catch. | 2026-08-04 |
+| 64 production edits reddening only collaterally (`Runtime/RngService.cs`, `Runtime/CoroutineService.cs`, `Runtime/TickService.cs`) | OPEN | Measured 2026-08-04 from `.test-all/rcr/unowned-edits.json`: 64 edits produced RED but never an `isolated` verdict — `RngService.cs` (11), `CoroutineService.cs` (9), `TickService.cs` (7), `ObjectPool.cs` (6). **Not 64 missing tests**; see the gamedata row for the reasoning. Owed: a judgement pass on whether the deterministic-RNG and tick-fan-out paths warrant narrow pins, since both are shared setup for many fixtures. | 2026-08-04 |
+| `TickServiceTest.MultipleInstances_CreateMultipleGameObjects` exemption is an unfinished RCR (`Runtime/TickService.cs`) | OPEN | Found 2026-08-04 by the same adversarial pass. The exemption claimed *"only a structural change (making the guard static) flips it"*, but `TickService.cs` declares `private readonly TickServiceMonoBehaviour _tickObject;` — changing that one line to `private static TickServiceMonoBehaviour _tickObject;` makes the ctor's `_tickObject != null` guard bite, so the second construction adds no host and the count assertion goes RED. A one-line mutation exists and was never run. Comment corrected to name it. Owed: run it. | 2026-08-04 |
 
 ## 14. Update Policy
 Update this file when:
