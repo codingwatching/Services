@@ -128,6 +128,7 @@ namespace GameLovers.Services
 		private readonly IDictionary<Type, IDictionary<Type, IDictionary>> _assetMap =
 			new Dictionary<Type, IDictionary<Type, IDictionary>>();
 
+		/// <summary>Registered assets, keyed by asset type then id type. Editor introspection only — see AGENTS.md §4.</summary>
 		internal IReadOnlyDictionary<Type, IDictionary<Type, IDictionary>> AssetMap =>
 			(IReadOnlyDictionary<Type, IDictionary<Type, IDictionary>>)_assetMap;
 
@@ -413,6 +414,10 @@ namespace GameLovers.Services
 			_errorClip = errorClip;
 		}
 
+		/// <summary>
+		/// Resolves which asset to hand back, substituting the matching error placeholder when the
+		/// reference has not finished loading.
+		/// </summary>
 		internal static TAsset SelectAsset<TAsset>(Type type, Object asset, bool isDone, bool instantiate,
 			Sprite errorSprite, GameObject errorCube, Material errorMaterial, AudioClip errorClip)
 			where TAsset : Object

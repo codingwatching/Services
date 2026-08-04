@@ -16,7 +16,9 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class OverviewTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Overview";
+		/// <inheritdoc />
 		protected override int RefreshIntervalMs => 1000;
 
 		private readonly ServicesExplorerWindow _window;

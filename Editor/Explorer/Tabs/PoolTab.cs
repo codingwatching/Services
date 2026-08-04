@@ -12,6 +12,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class PoolTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Pool";
 
 		private ScrollView _scroll;

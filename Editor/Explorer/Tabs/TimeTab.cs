@@ -10,7 +10,9 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class TimeTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Time";
+		/// <inheritdoc />
 		protected override int RefreshIntervalMs => 500;
 
 		private Label _utcLabel;

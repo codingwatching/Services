@@ -14,7 +14,9 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class VersioningTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Versioning";
+		/// <inheritdoc />
 		protected override int RefreshIntervalMs => 2000;
 
 		private Label _externalLabel;

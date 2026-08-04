@@ -11,6 +11,7 @@ namespace GameLovers.Services
 	{
 		private readonly IDictionary<Type, IObjectPool> _pools = new Dictionary<Type, IObjectPool>();
 
+		/// <summary>Registered pools, one per pooled type. Editor introspection only — see AGENTS.md §4.</summary>
 		internal IReadOnlyDictionary<Type, IObjectPool> Pools => (IReadOnlyDictionary<Type, IObjectPool>)_pools;
 
 		/// <inheritdoc />

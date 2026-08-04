@@ -23,7 +23,9 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		private static readonly Color OkColor = new Color(0.6f, 0.9f, 0.6f);
 		private static readonly Color MutedColor = new Color(0.7f, 0.7f, 0.7f);
 
+		/// <inheritdoc />
 		public override string DisplayName => "Addressable Ids";
+		/// <inheritdoc />
 		protected override int RefreshIntervalMs => 2000;
 
 		private TextField _filenameField;

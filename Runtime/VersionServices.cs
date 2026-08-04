@@ -16,6 +16,10 @@ namespace GameLovers.Services
 	{
 		public const string VersionDataFilename = "version-data";
 
+		/// <summary>
+		/// The shape of the <c>version-data</c> Resources text asset written by the editor's
+		/// versioning pass and parsed on load.
+		/// </summary>
 		[Serializable]
 		public struct VersionData
 		{

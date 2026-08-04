@@ -111,6 +111,7 @@ namespace GameLovers.Services
 
 #if UNITY_EDITOR
 		private readonly List<IAsyncCoroutine> _activeAsyncCoroutines = new List<IAsyncCoroutine>();
+		/// <summary>Async coroutines still running. Editor introspection only — see AGENTS.md §4.</summary>
 		internal IReadOnlyList<IAsyncCoroutine> ActiveAsyncCoroutines => _activeAsyncCoroutines;
 #endif
 

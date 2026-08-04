@@ -8,6 +8,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class CoroutineTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Coroutine";
 
 		private ScrollView _scroll;

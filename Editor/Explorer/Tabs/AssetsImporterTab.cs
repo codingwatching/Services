@@ -15,7 +15,9 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class AssetsImporterTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Assets Importer";
+		/// <inheritdoc />
 		protected override int RefreshIntervalMs => 2000;
 
 		private Toggle _autoImportToggle;

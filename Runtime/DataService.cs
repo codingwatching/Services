@@ -55,6 +55,7 @@ namespace GameLovers.Services
 	{
 		private readonly IDictionary<Type, object> _data = new Dictionary<Type, object>();
 
+		/// <summary>The in-memory store, keyed by data type. Editor introspection only — see AGENTS.md §4.</summary>
 		internal IReadOnlyDictionary<Type, object> DataEntries => (IReadOnlyDictionary<Type, object>)_data;
 
 		/// <inheritdoc />
@@ -115,6 +116,9 @@ namespace GameLovers.Services
 			}
 		}
 
+		/// <summary>
+		/// Runs after a save has been written; override to mirror the data elsewhere.
+		/// </summary>
 		protected virtual void OnDataSaved(string key, object data, Type type)
 		{
 		}

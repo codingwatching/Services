@@ -11,6 +11,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class InstallerTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Installer";
 
 		private ScrollView _scroll;

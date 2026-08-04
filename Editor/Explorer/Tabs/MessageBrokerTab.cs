@@ -15,6 +15,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class MessageBrokerTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Message Broker";
 
 		private ScrollView _scroll;

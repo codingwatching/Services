@@ -13,6 +13,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class DataTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Data";
 
 		private ScrollView _scroll;

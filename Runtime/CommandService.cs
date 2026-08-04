@@ -10,7 +10,9 @@ namespace GameLovers.Services
 		private readonly TGameLogic _gameLogic;
 		private readonly IMessageBrokerService _messageBroker;
 		
+		/// <summary>The game logic every command executes against.</summary>
 		protected TGameLogic  GameLogic => _gameLogic;
+		/// <summary>The broker commands publish through.</summary>
 		protected IMessageBrokerService MessageBroker => _messageBroker;
 
 		public CommandService(TGameLogic gameLogic, IMessageBrokerService messageBroker)

@@ -15,6 +15,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class AssetResolverTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Asset Resolver";
 
 		private ScrollView _scroll;

@@ -10,7 +10,9 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class RngTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "RNG";
+		/// <inheritdoc />
 		protected override int RefreshIntervalMs => 500;
 
 		private const string PeekTooltip =

@@ -81,6 +81,10 @@ namespace GameLovers.Services.Pooling
 			}
 		}
 
+		/// <summary>
+		/// Clears the pool, additionally dropping the reference to <see cref="IObjectPool{T}.SampleEntity"/>
+		/// when <paramref name="disposeSampleEntity"/> is set.
+		/// </summary>
 		public virtual void Dispose(bool disposeSampleEntity)
 		{
 			if (disposeSampleEntity)
@@ -163,6 +167,11 @@ namespace GameLovers.Services.Pooling
 			Clear();
 		}
 
+		/// <summary>
+		/// Takes the next entity from the stack, instantiating one when the stack is empty.
+		/// Retries past entities an external owner destroyed while they sat pooled, which is why the
+		/// null test goes through <c>IsDestroyedOrNull</c> rather than a plain <c>== null</c>.
+		/// </summary>
 		protected virtual T SpawnEntity()
 		{
 			T entity = null;
@@ -180,8 +189,15 @@ namespace GameLovers.Services.Pooling
 			return entity;
 		}
 
+		/// <summary>
+		/// Runs after an entity has been returned to the stack; the base implementation does nothing.
+		/// </summary>
 		protected virtual void PostDespawnEntity(T entity) { }
 
+		/// <summary>
+		/// Instantiates a fresh entity from the sample and, when it implements
+		/// <see cref="IPoolEntityObject{T}"/>, hands it back a reference to this pool.
+		/// </summary>
 		protected T CallInstantiator()
 		{
 			var entity = _instantiator.Invoke(SampleEntity);
@@ -192,6 +208,10 @@ namespace GameLovers.Services.Pooling
 			return entity;
 		}
 
+		/// <summary>
+		/// Dispatches the spawn hook. Override to change how a pooled entity is discovered —
+		/// this base casts the entity directly, whereas the GameObject pools use <c>GetComponent</c>.
+		/// </summary>
 		protected virtual void CallOnSpawned(T entity)
 		{
 			var poolEntity = entity as IPoolEntitySpawn;
@@ -199,6 +219,9 @@ namespace GameLovers.Services.Pooling
 			poolEntity?.OnSpawn();
 		}
 
+		/// <summary>
+		/// Dispatches the data-carrying spawn hook; see the parameterless overload for the cast rationale.
+		/// </summary>
 		protected virtual void CallOnSpawned<TData>(T entity, TData data)
 		{
 			var poolEntity = entity as IPoolEntitySpawn<TData>;
@@ -206,6 +229,9 @@ namespace GameLovers.Services.Pooling
 			poolEntity?.OnSpawn(data);
 		}
 
+		/// <summary>
+		/// Dispatches the despawn hook; see <see cref="CallOnSpawned(T)"/> for the cast rationale.
+		/// </summary>
 		protected virtual void CallOnDespawned(T entity)
 		{
 			var poolEntity = entity as IPoolEntityDespawn;

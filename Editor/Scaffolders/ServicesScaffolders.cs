@@ -106,13 +106,11 @@ namespace GameLovers.Services.Scaffolders.Editor
 		{
 			public string TemplatePath;
 
-			/// <inheritdoc />
 			public override void Action(EntityId entityId, string pathName, string resourceFile)
 			{
 				WriteScript(pathName);
 			}
 
-			/// <inheritdoc />
 			public override void Cancelled(EntityId entityId, string pathName, string resourceFile)
 			{
 			}
@@ -181,13 +179,11 @@ namespace GameLovers.Services.Scaffolders.Editor
 		{
 			public string TemplatePath;
 
-			/// <inheritdoc />
 			public override void Action(int instanceId, string pathName, string resourceFile)
 			{
 				WriteScript(pathName);
 			}
 
-			/// <inheritdoc />
 			public override void Cancelled(int instanceId, string pathName, string resourceFile)
 			{
 			}

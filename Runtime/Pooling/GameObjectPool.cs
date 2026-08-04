@@ -66,6 +66,7 @@ namespace GameLovers.Services.Pooling
 			return instance;
 		}
 
+		/// <inheritdoc />
 		protected override GameObject SpawnEntity()
 		{
 			var entity = base.SpawnEntity();
@@ -99,6 +100,7 @@ namespace GameLovers.Services.Pooling
 			poolEntity?.OnDespawn();
 		}
 
+		/// <inheritdoc />
 		protected override void PostDespawnEntity(GameObject entity)
 		{
 			entity.SetActive(false);
@@ -173,6 +175,7 @@ namespace GameLovers.Services.Pooling
 			return instance;
 		}
 
+		/// <inheritdoc />
 		protected override T SpawnEntity()
 		{
 			T entity = null;
@@ -218,6 +221,7 @@ namespace GameLovers.Services.Pooling
 			poolEntity?.OnDespawn();
 		}
 
+		/// <inheritdoc />
 		protected override void PostDespawnEntity(T entity)
 		{
 			entity.gameObject.SetActive(false);

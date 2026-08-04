@@ -8,6 +8,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class TickTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Tick";
 
 		private Foldout _updateFoldout;
