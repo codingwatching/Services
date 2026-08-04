@@ -48,7 +48,6 @@ namespace GameLovers.Services.Versioning.Editor
 			return serialized;
 		}
 
-		// Set the internal version for when the app plays in editor.
 		[InitializeOnLoadMethod]
 		private static void OnEditorLoad()
 		{
@@ -103,8 +102,6 @@ namespace GameLovers.Services.Versioning.Editor
 			return data;
 		}
 
-		// Set the internal version of this application and save it in resources. This should be called at edit/build
-		// time.
 		private static void SaveVersionData(string serializedData)
 		{
 			var relFolderPath = VersioningEditorSettings.instance.ResourcesFolderPath;

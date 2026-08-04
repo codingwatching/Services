@@ -516,10 +516,7 @@ namespace GameLovers.Services.AddressableIds.Editor
 			}
 		}
 
-		// Resolves the name_filetype-suffixed disambiguation candidate for a given Addressable address when its
-		// cleaned name collides with one already in seenNames. Sets collided to true when the fallback path was
-		// taken. Used by both AppendAddressEnumMembers (to emit a unique enum member name) and
-		// DetectSanitizedNameCollisions (to report collisions for the Explorer diff view).
+		// Disambiguates a collision by re-cleaning the address with its file extension appended (name_filetype).
 		private static string ResolveSanitizedEnumName(string address, List<string> seenNames, out bool collided)
 		{
 			var name = GetCleanName(address, true);
@@ -580,8 +577,7 @@ namespace GameLovers.Services.AddressableIds.Editor
 			return nulls;
 		}
 
-		// Returns the elements of left that are not in right. Both inputs MUST be pre-sorted ordinally; output is
-		// also sorted ordinally.
+		// Both inputs must already be sorted ordinally; nothing here enforces it.
 		private static List<string> SortedSetDiff(IReadOnlyList<string> left, IReadOnlyList<string> right)
 		{
 			var result = new List<string>();

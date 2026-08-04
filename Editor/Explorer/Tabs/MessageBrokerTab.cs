@@ -176,10 +176,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			}
 		}
 
-		// Builds a deterministic digest of every piece of state the rebuild path renders: edit-mode-empty, not-bound,
-		// and per-subscription (messageType, [target.method, ...]) tuples. When two consecutive refreshes produce the
-		// same digest the rebuild can be skipped — keeping rapid foldout clicks from getting destroyed mid-click by
-		// the 250 ms timer.
+		// Must cover every input the rebuild conditions on; see AGENTS.md §4.
 		private static string ComputeDigest(bool isPlaying, MessageBrokerService broker)
 		{
 			if (!isPlaying)

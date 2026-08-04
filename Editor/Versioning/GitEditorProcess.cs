@@ -73,7 +73,6 @@ namespace GameLovers.Services.Versioning.Editor
 			Process?.Dispose();
 		}
 		
-		// Execute a command eg. "status --verbose"
 		private string ExecuteCommand(string args)
 		{
 			Process.StartInfo.Arguments = args;

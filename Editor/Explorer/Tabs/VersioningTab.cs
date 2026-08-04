@@ -195,8 +195,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			}
 		}
 
-		// Returns a forward-slash project-relative path (e.g. Assets/Configs/Resources) from an absolute path that
-		// lives under baseDir. Returns the original string unchanged if it does not start with baseDir.
+		// Returns fullPath unchanged when it does not live under baseDir, rather than throwing or empty.
 		private static string GetRelativePath(string baseDir, string fullPath)
 		{
 			var normalBase = baseDir.Replace('\\', '/').TrimEnd('/') + '/';

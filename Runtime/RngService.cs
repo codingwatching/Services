@@ -321,7 +321,6 @@ namespace GameLovers.Services
 			return state;
 		}
 
-		// Generates the next random number between [0...int.MaxValue] based on the given rndState
 		private static int NextNumber(int[] rndState)
 		{
 			var index1 = rndState[_valueIndex] + 1;
