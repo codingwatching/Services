@@ -147,6 +147,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: GameObjectPool.Dispose must use the Unity fake-null guard (`obj == null`) on every Clear() entry —
+		// a pooled instance can be destroyed by an external parent while the pool still tracks it.
+		// RCR: GameObjectPool.cs GameObjectPool.Dispose() — `if (obj == null)` → `if (obj.transform == null)` → RED
+		// (MissingReferenceException from dereferencing the destroyed GameObject). 2026-08-02
 		public IEnumerator Dispose_AfterDespawnedInstanceDestroyedExternally_DoesNotThrow()
 		{
 			var externalParent = new GameObject("ExternalParent");

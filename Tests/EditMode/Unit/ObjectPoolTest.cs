@@ -208,6 +208,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.Despawn(onlyFirst, predicate) must still report true when it stops after the
+		// first match, not swallow the result on the early exit.
+		// RCR: ObjectPool.cs Despawn(bool, Func) — the `if (onlyFirst) { break; }` body → `return false;` → RED
+		// (Assert.IsTrue fails even though the entity was despawned). 2026-08-02
 		public void Despawn_WithCondition_FirstOnly_Successfully()
 		{
 			var entity = _pool.Spawn();
@@ -229,6 +233,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: ObjectPoolBase<T>.Despawn(onlyFirst: false, predicate) must keep scanning after the first match
+		// instead of exiting the loop.
+		// RCR: ObjectPool.cs Despawn(bool, Func) — make the break unconditional (`if (onlyFirst)` → `if (true)`) →
+		// RED (SpawnedReadOnly.Count is 1, not 0). 2026-08-02
 		public void Despawn_WithCondition_AllMatching_DespawnsAll()
 		{
 			_pool.Spawn();
