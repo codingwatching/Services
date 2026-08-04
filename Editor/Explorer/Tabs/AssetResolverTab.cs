@@ -22,6 +22,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		private Toggle _destructiveToggle;
 		private Label _countLabel;
 
+		/// <inheritdoc />
 		protected override void BuildUi()
 		{
 			var header = new VisualElement();
@@ -51,6 +52,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		Add(bar);
 	}
 
+		/// <inheritdoc />
 		protected override void Refresh()
 		{
 			var resolver = TryResolve<IAssetResolverService>() as AssetResolverService;
@@ -136,13 +138,10 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			}
 		}
 
-		/// <summary>
-		/// Builds a deterministic digest of every piece of state the rebuild path renders:
-		/// the not-bound branch, the destructive-toggle flag (gates per-row Unload buttons),
-		/// and per-row <c>(assetType, idType, id, loaded)</c> tuples. When two consecutive
-		/// refreshes produce the same digest the rebuild can be skipped — keeping rapid
-		/// foldout clicks from getting destroyed mid-click by the 250 ms timer.
-		/// </summary>
+		// Builds a deterministic digest of every piece of state the rebuild path renders: the not-bound branch, the
+		// destructive-toggle flag (gates per-row Unload buttons), and per-row (assetType, idType, id, loaded) tuples.
+		// When two consecutive refreshes produce the same digest the rebuild can be skipped — keeping rapid foldout
+		// clicks from getting destroyed mid-click by the 250 ms timer.
 		private string ComputeDigest(AssetResolverService resolver)
 		{
 			if (resolver == null)

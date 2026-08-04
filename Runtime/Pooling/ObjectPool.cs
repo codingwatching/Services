@@ -213,15 +213,11 @@ namespace GameLovers.Services.Pooling
 			poolEntity?.OnDespawn();
 		}
 
-		/// <summary>
-		/// A plain <c>entity == null</c> inside this generic class only ever performs C# reference-equality:
-		/// <typeparamref name="T"/> is constrained to <c>class</c>, not to <c>UnityEngine.Object</c>, so the
-		/// compiler cannot dispatch to <c>UnityEngine.Object</c>'s overloaded <c>==</c> that detects a
-		/// destroyed-but-not-null ("fake-null") native object. When <paramref name="entity"/>'s runtime type
-		/// IS a <c>UnityEngine.Object</c> (e.g. a pooled <c>GameObject</c>/<c>Behaviour</c>), this dispatches to
-		/// that overload via a runtime type check instead; for a non-Unity <typeparamref name="T"/> (a POCO
-		/// pooled type), it falls back to a plain reference-null check.
-		/// </summary>
+		// A plain entity == null inside this generic class only ever performs C# reference-equality: T is constrained
+		// to class, not to UnityEngine.Object, so the compiler cannot dispatch to UnityEngine.Object's overloaded ==
+		// that detects a destroyed-but-not-null ("fake-null") native object. When entity's runtime type IS a
+		// UnityEngine.Object (e.g. a pooled GameObject/Behaviour), this dispatches to that overload via a runtime
+		// type check instead; for a non-Unity T (a POCO pooled type), it falls back to a plain reference-null check.
 		private static bool IsDestroyedOrNull(T entity)
 		{
 			return entity is UnityEngine.Object unityObject ? unityObject == null : entity == null;

@@ -20,6 +20,7 @@ namespace GameLovers.Services.Inspectors.Editor
 		private VisualElement _diagnosticsPanel;
 		private Label _diagnosticsLabel;
 
+		/// <inheritdoc />
 		public override VisualElement CreateInspectorGUI()
 		{
 			var root = new VisualElement();

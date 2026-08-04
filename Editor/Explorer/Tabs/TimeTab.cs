@@ -24,6 +24,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		private TextField _setInitialField;
 		private VisualElement _manipulatorSection;
 
+		/// <inheritdoc />
 		protected override void BuildUi()
 		{
 			var scroll = new ScrollView(ScrollViewMode.Vertical);
@@ -92,6 +93,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		Add(bar);
 	}
 
+		/// <inheritdoc />
 		protected override void Refresh()
 		{
 			var service = TryResolve<ITimeService>();

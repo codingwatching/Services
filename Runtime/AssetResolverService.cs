@@ -413,54 +413,6 @@ namespace GameLovers.Services
 			_errorClip = errorClip;
 		}
 
-		private TAsset Convert<TAsset>(AssetReference assetReference, bool instantiate)
-			where TAsset : Object
-		{
-			return SelectAsset<TAsset>(typeof(TAsset), assetReference.Asset, assetReference.IsDone, instantiate,
-				_errorSprite, _errorCube, _errorMaterial, _errorClip);
-		}
-
-		/// <summary>
-		/// Pure type-switch that resolves the <typeparamref name="TAsset"/> to return for a given Addressables
-		/// <paramref name="asset"/>/<paramref name="isDone"/> pair, substituting the matching error placeholder
-		/// (<paramref name="errorSprite"/>/<paramref name="errorCube"/>/<paramref name="errorMaterial"/>/<paramref name="errorClip"/>)
-		/// when the reference has not finished loading. Extracted from <see cref="Convert{TAsset}"/> for direct
-		/// testability; no behaviour change versus the inlined switch it replaces.
-		/// </summary>
-		/*
-		 * AssetReference types
-
-			GameObject
-			ScriptableObject
-			Texture
-			Texture3D
-			Texture2D
-			RenderTexture
-			CustomRenderTexture
-			CubeMap
-			Material
-			PhysicMaterial
-			PhysicMaterial2D
-			Sprite
-			SpriteAtlas
-			VideoClip
-			AudioClip
-			AudioMixer
-			Avatar
-			AnimatorController
-			AnimatorOverrideController
-			TextAsset
-			Mesh
-			Shader
-			ComputeShader
-			Flare
-			NavMeshData
-			TerrainData
-			TerrainLayer
-			Font
-			Scene
-			GUISkin
-		 * */
 		internal static TAsset SelectAsset<TAsset>(Type type, Object asset, bool isDone, bool instantiate,
 			Sprite errorSprite, GameObject errorCube, Material errorMaterial, AudioClip errorClip)
 			where TAsset : Object
@@ -496,6 +448,55 @@ namespace GameLovers.Services
 
 			return asset as TAsset;
 		}
+
+		private TAsset Convert<TAsset>(AssetReference assetReference, bool instantiate)
+			where TAsset : Object
+		{
+			return SelectAsset<TAsset>(typeof(TAsset), assetReference.Asset, assetReference.IsDone, instantiate,
+				_errorSprite, _errorCube, _errorMaterial, _errorClip);
+		}
+
+		/// <summary>
+		/// Pure type-switch that resolves the <typeparamref name="TAsset"/> to return for a given Addressables
+		/// <paramref name="asset"/>/<paramref name="isDone"/> pair, substituting the matching error placeholder
+		/// (<paramref name="errorSprite"/>/<paramref name="errorCube"/>/<paramref name="errorMaterial"/>/<paramref name="errorClip"/>)
+		/// when the reference has not finished loading. Kept separate from <see cref="Convert{TAsset}"/> so the
+		/// type-switch is directly testable.
+		/// </summary>
+		/*
+		 * AssetReference types
+
+			GameObject
+			ScriptableObject
+			Texture
+			Texture3D
+			Texture2D
+			RenderTexture
+			CustomRenderTexture
+			CubeMap
+			Material
+			PhysicMaterial
+			PhysicMaterial2D
+			Sprite
+			SpriteAtlas
+			VideoClip
+			AudioClip
+			AudioMixer
+			Avatar
+			AnimatorController
+			AnimatorOverrideController
+			TextAsset
+			Mesh
+			Shader
+			ComputeShader
+			Flare
+			NavMeshData
+			TerrainData
+			TerrainLayer
+			Font
+			Scene
+			GUISkin
+		 * */
 
 		private bool TryGetDictionary<TId, TAsset>(out Dictionary<TId, AssetReference> dictionary)
 		{

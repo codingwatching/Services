@@ -18,6 +18,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		private VisualElement _list;
 		private Label _countLabel;
 
+		/// <inheritdoc />
 		protected override void BuildUi()
 		{
 			var header = new VisualElement();
@@ -38,6 +39,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		Add(bar);
 	}
 
+		/// <inheritdoc />
 		protected override void Refresh()
 		{
 			_list.Clear();
@@ -175,6 +177,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		// MainInstaller.Clean() in OnDestroy — without this the static MainInstaller
 		// would surface stale pools (and their spawned-readonly counts) until the next
 		// play session.
+		/// <inheritdoc />
 		protected override void OnExitingPlayMode()
 		{
 			_countLabel.text = "Pools: 0";

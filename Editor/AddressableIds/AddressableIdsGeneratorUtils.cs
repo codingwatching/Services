@@ -241,6 +241,24 @@ namespace GameLovers.Services.AddressableIds.Editor
 			return scriptPath;
 		}
 
+		/// <summary>
+		/// Pure string-builder: turns <paramref name="addresses"/> into the generated C# enum member-block
+		/// source text (opening brace, one member per address, closing brace) that <see cref="GenerateScript"/>
+		/// inserts after the <c>public enum &lt;Name&gt;</c> header line. Takes no <c>AssetDatabase</c>
+		/// dependency — operates on plain address strings only, so it is directly unit-testable.
+		/// </summary>
+		internal static string BuildEnumSource(IReadOnlyCollection<string> addresses)
+		{
+			var addressList = addresses as IReadOnlyList<string> ?? new List<string>(addresses);
+			var stringBuilder = new StringBuilder();
+
+			stringBuilder.AppendLine("\t{");
+			AppendAddressEnumMembers(stringBuilder, addressList);
+			stringBuilder.AppendLine("\t}");
+
+			return stringBuilder.ToString();
+		}
+
 		private static List<AddressableAssetEntry> GetAssetList()
 		{
 			var assetList = new List<AddressableAssetEntry>();
@@ -483,26 +501,6 @@ namespace GameLovers.Services.AddressableIds.Editor
 			}
 		}
 
-		/// <summary>
-		/// Pure string-builder: turns <paramref name="addresses"/> into the generated C# enum member-block
-		/// source text (opening brace, one member per address, closing brace) that <see cref="GenerateScript"/>
-		/// inserts after the <c>public enum &lt;Name&gt;</c> header line. Takes no <c>AssetDatabase</c>
-		/// dependency — operates on plain address strings only, so it is directly unit-testable.
-		/// Extracted from the previous inlined <c>GenerateAddressEnums(StringBuilder, IReadOnlyList&lt;AddressableAssetEntry&gt;)</c>;
-		/// no behaviour change versus the logic it replaces.
-		/// </summary>
-		internal static string BuildEnumSource(IReadOnlyCollection<string> addresses)
-		{
-			var addressList = addresses as IReadOnlyList<string> ?? new List<string>(addresses);
-			var stringBuilder = new StringBuilder();
-
-			stringBuilder.AppendLine("\t{");
-			AppendAddressEnumMembers(stringBuilder, addressList);
-			stringBuilder.AppendLine("\t}");
-
-			return stringBuilder.ToString();
-		}
-
 		private static void AppendAddressEnumMembers(StringBuilder stringBuilder, IReadOnlyList<string> addresses)
 		{
 			var addedNames = new List<string>();
@@ -518,14 +516,10 @@ namespace GameLovers.Services.AddressableIds.Editor
 			}
 		}
 
-		/// <summary>
-		/// Resolves the <c>name_filetype</c>-suffixed disambiguation candidate for a given Addressable
-		/// <paramref name="address"/> when its cleaned name collides with one already in
-		/// <paramref name="seenNames"/>. Sets <paramref name="collided"/> to <c>true</c> when the fallback
-		/// path was taken. Used by both <see cref="AppendAddressEnumMembers"/> (to emit a unique enum member
-		/// name) and <see cref="DetectSanitizedNameCollisions"/> (to report collisions for the Explorer diff
-		/// view).
-		/// </summary>
+		// Resolves the name_filetype-suffixed disambiguation candidate for a given Addressable address when its
+		// cleaned name collides with one already in seenNames. Sets collided to true when the fallback path was
+		// taken. Used by both AppendAddressEnumMembers (to emit a unique enum member name) and
+		// DetectSanitizedNameCollisions (to report collisions for the Explorer diff view).
 		private static string ResolveSanitizedEnumName(string address, List<string> seenNames, out bool collided)
 		{
 			var name = GetCleanName(address, true);
@@ -586,10 +580,8 @@ namespace GameLovers.Services.AddressableIds.Editor
 			return nulls;
 		}
 
-		/// <summary>
-		/// Returns the elements of <paramref name="left"/> that are not in <paramref name="right"/>.
-		/// Both inputs MUST be pre-sorted ordinally; output is also sorted ordinally.
-		/// </summary>
+		// Returns the elements of left that are not in right. Both inputs MUST be pre-sorted ordinally; output is
+		// also sorted ordinally.
 		private static List<string> SortedSetDiff(IReadOnlyList<string> left, IReadOnlyList<string> right)
 		{
 			var result = new List<string>();

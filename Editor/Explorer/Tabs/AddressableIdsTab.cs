@@ -43,6 +43,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		private VisualElement _removedList;
 		private VisualElement _warningsList;
 
+		/// <inheritdoc />
 		protected override void BuildUi()
 		{
 			var scroll = new ScrollView(ScrollViewMode.Vertical);
@@ -174,6 +175,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			RefreshOutput();
 		}
 
+		/// <inheritdoc />
 		protected override void Refresh()
 		{
 			var settings = AddressableIdsEditorSettings.instance;

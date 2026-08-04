@@ -14,6 +14,7 @@ namespace GameLovers.Services.Inspectors.Editor
 	[CustomPropertyDrawer(typeof(AssetReferenceScene), useForChildren: true)]
 	public class AssetReferenceSceneDrawer : PropertyDrawer
 	{
+		/// <inheritdoc />
 		public override VisualElement CreatePropertyGUI(SerializedProperty property)
 		{
 			var container = new VisualElement();

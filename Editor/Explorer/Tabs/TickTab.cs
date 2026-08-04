@@ -15,6 +15,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		private Foldout _lateFoldout;
 		private VisualElement _actionBar;
 
+		/// <inheritdoc />
 		protected override void BuildUi()
 		{
 			var scroll = new ScrollView(ScrollViewMode.Vertical);
@@ -42,6 +43,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		Add(_actionBar);
 		}
 
+		/// <inheritdoc />
 		protected override void Refresh()
 		{
 			// Hide tick subscriber lists in edit mode regardless of any leftover
@@ -74,6 +76,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		// Forcibly clear all three tick subscriber lists synchronously when the user
 		// stops play mode. Belt-and-braces against bootstraps that fail to dispose
 		// ITickService / call MainInstaller.Clean() in OnDestroy.
+		/// <inheritdoc />
 		protected override void OnExitingPlayMode()
 		{
 			ShowEmptyState();

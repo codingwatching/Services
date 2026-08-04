@@ -11,10 +11,6 @@ namespace GameLovers.Services.AssetsImporter
 	[System.Serializable]
 	public class AssetReferenceScene : AssetReference
 	{
-		/// <summary>
-		/// Construct a new AssetReference object.
-		/// </summary>
-		/// <param name="guid">The guid of the asset.</param>
 		public AssetReferenceScene(string guid) : base(guid)
 		{
 		}

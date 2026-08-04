@@ -381,11 +381,13 @@ namespace GameLovers.Services
 				return other.Id == Id;
 			}
 
+			/// <inheritdoc />
 			public override bool Equals(object other)
 			{
 				return other is TickData && Equals((TickData)other);
 			}
 
+			/// <inheritdoc />
 			public override int GetHashCode()
 			{
 				return Id;

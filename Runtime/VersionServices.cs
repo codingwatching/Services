@@ -87,19 +87,13 @@ namespace GameLovers.Services
 		private static VersionData _versionData;
 		private static bool _loaded;
 
-		/// <summary>
-		/// Auto-bootstrap hook: populates version metadata at the earliest runtime phase Unity
-		/// exposes, before any scene <c>Awake</c> and before vendor SDK <c>SubsystemRegistration</c>
-		/// callbacks that read <see cref="VersionInternal"/> / <see cref="BuildNumber"/> (e.g.
-		/// Sentry's Option Config Script). Consumers no longer need to call
-		/// <see cref="LoadVersionData"/> / <see cref="LoadVersionDataAsync"/> explicitly for the
-		/// default flow.
-		/// </summary>
-		/// <remarks>
-		/// Ordering between <see cref="RuntimeInitializeLoadType.SubsystemRegistration"/> callbacks
-		/// across assemblies is undefined; if a sibling SDK's hook fires before this one, the
-		/// property accessors' lazy-load fallback (<see cref="EnsureLoaded"/>) covers the race.
-		/// </remarks>
+		// Auto-bootstrap hook: populates version metadata at the earliest runtime phase Unity exposes, before any
+		// scene Awake and before vendor SDK SubsystemRegistration callbacks that read VersionInternal / BuildNumber
+		// (e.g. Sentry's Option Config Script). Consumers no longer need to call LoadVersionData /
+		// LoadVersionDataAsync explicitly for the default flow. Ordering between
+		// RuntimeInitializeLoadType.SubsystemRegistration callbacks across assemblies is undefined; if a sibling
+		// SDK's hook fires before this one, the property accessors' lazy-load fallback (EnsureLoaded) covers the
+		// race.
 		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
 		private static void Bootstrap()
 		{

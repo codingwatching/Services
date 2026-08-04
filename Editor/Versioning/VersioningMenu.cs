@@ -10,10 +10,8 @@ namespace GameLovers.Services.Versioning.Editor
 	/// </summary>
 	internal static class VersioningMenu
 	{
-		/// <summary>
-		/// Regenerates <c>version-data.txt</c> from the current git state (non-store build).
-		/// Equivalent to the domain-reload trigger — useful after branch switches without a full reload.
-		/// </summary>
+		// Regenerates version-data.txt from the current git state (non-store build). Equivalent to the domain-reload
+		// trigger — useful after branch switches without a full reload.
 		[MenuItem("Tools/GameLovers/Versioning/Refresh Version Data", priority = 100)]
 		private static void Refresh() => VersionEditorUtils.SetAndSaveInternalVersion(false);
 
