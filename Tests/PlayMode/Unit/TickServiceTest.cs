@@ -442,26 +442,10 @@ namespace GameLoversEditor.Services.Tests
 		// ADMIT: TickService does NOT enforce a singleton -- the ctor's `_tickObject != null` guard reads an instance
 		// field and is therefore always false, so each construction adds its own TickServiceMonoBehaviour.
 		// RCR: TickService.cs -- `private readonly TickServiceMonoBehaviour _tickObject;` -> `private static
-		// TickServiceMonoBehaviour _tickObject;` makes the ctor guard bite, so the second construction adds no
-		// host and the count assertion goes RED. OWED: that mutation is one line and has not been run.
+		// TickServiceMonoBehaviour _tickObject;` -> RED (production's own ctor guard throws
+		// InvalidOperationException "initialized for the second time"). 2026-08-04
 		public void MultipleInstances_CreateMultipleGameObjects()
 		{
-			// Note: The service doesn't enforce singleton, but it throws if _tickObject is already set
-			// However, _tickObject is an instance field in the current implementation.
-			// Wait, I saw a check in the constructor:
-			/*
-			public TickService()
-			{
-				if (_tickObject != null)
-				{
-					throw new InvalidOperationException("The tick service is being initialized for the second time and that is not valid");
-				}
-				...
-			}
-			*/
-			// But _tickObject is private readonly TickServiceMonoBehaviour _tickObject;
-			// So it's always null for a new instance. The check seems to be intended for a static field but isn't.
-			
 			var service1 = new TickService();
 			var service2 = new TickService();
 			
