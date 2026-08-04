@@ -72,16 +72,20 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: DataService.AddOrReplaceData overwrites the existing entry for typeof(T) on the replace branch rather
+		// than keeping the first instance.
+		// RCR: DataService.cs AddOrReplaceData — neuter the replace branch to `_data[typeof(T)] = _data[typeof(T)];` →
+		// RED (GetData still returns `first`). Also reddens SaveAllData_Successfully, which replaces the same type.
+		// 2026-08-04
 		public void ReplaceData_Successfully()
 		{
-			var data = Substitute.For<IDataMockup>();
-			var data1 = new object();
+			var first = Substitute.For<IDataMockup>();
+			var second = Substitute.For<IDataMockup>();
 
-			_dataService.AddOrReplaceData(data1);
-			_dataService.AddOrReplaceData(data);
+			_dataService.AddOrReplaceData(first);
+			_dataService.AddOrReplaceData(second);
 
-			Assert.AreNotSame(data1, _dataService.GetData<IDataMockup>());
-			Assert.AreSame(data, _dataService.GetData<IDataMockup>());
+			Assert.AreSame(second, _dataService.GetData<IDataMockup>());
 		}
 
 		[Test]

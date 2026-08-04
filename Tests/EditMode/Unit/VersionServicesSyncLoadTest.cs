@@ -1,6 +1,7 @@
 using System.Reflection;
 using GameLovers.Services;
 using NUnit.Framework;
+using UnityEngine;
 
 // ReSharper disable once CheckNamespace
 
@@ -118,12 +119,13 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: VersionServices.VersionExternal must forward Application.version verbatim, with no dependency on the
+		// version-data resource having been loaded.
+		// RCR: VersionServices.cs VersionExternal — `=> string.Empty;` → RED (AreEqual reports the project version
+		// against ""). Unique: VersionInternal has its own fallback path and its own tests. 2026-08-04
 		public void VersionExternal_AlwaysAccessible_WithoutLoad()
 		{
-			var external = VersionServices.VersionExternal;
-
-			Assert.IsNotNull(external);
-			Assert.IsNotEmpty(external);
+			Assert.AreEqual(Application.version, VersionServices.VersionExternal);
 		}
 	}
 }

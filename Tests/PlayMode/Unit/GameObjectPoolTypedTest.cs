@@ -195,12 +195,17 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: ObjectPoolBase<T>.Despawn(bool, Func) stops after the first match when onlyFirst is set, so a
+		// predicate matching every spawned entity still despawns exactly one.
+		// RCR: ObjectPool.cs Despawn(bool, Func) — neuter the `if (onlyFirst)` break guard to `if (false)` → RED (both
+		// entities despawn: count 0 and instance2 inactive). Isolated:
+		// Despawn_WithCondition_AllMatching_DespawnsAll passes onlyFirst: false and stays green. 2026-08-04
 		public IEnumerator Despawn_WithCondition_FirstOnly_Successfully()
 		{
 			var instance1 = _pool.Spawn();
 			var instance2 = _pool.Spawn();
 
-			Assert.IsTrue(_pool.Despawn(onlyFirst: true, e => e == instance1));
+			Assert.IsTrue(_pool.Despawn(onlyFirst: true, e => true));
 			Assert.AreEqual(1, _pool.SpawnedReadOnly.Count);
 			Assert.IsFalse(instance1.gameObject.activeSelf);
 			Assert.IsTrue(instance2.gameObject.activeSelf);

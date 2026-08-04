@@ -131,16 +131,29 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
-		public void UnsubscribeWithAction_MultipleSubscriptionSameType_RemoveAllScriptionsOfSameType()
+		// ADMIT: Subscribe keys by action.Target so the same subscriber's second action replaces its first, and
+		// Unsubscribe<T>(subscriber) then removes only that subscriber's entry from the message type's bucket.
+		// RCR: MessageBrokerService.cs Unsubscribe<T> — `subscriptionObjects.Remove(subscriber);` →
+		// `subscriptionObjects.Clear();` → RED (bystander.Received(2) sees 1). Isolated: Unsubscribe_Successfully has
+		// a single subscriber, for which Clear and Remove are indistinguishable. 2026-08-04
+		public void Subscribe_SameSubscriberSameType_LastActionWins_ThenUnsubscribeRemovesOnlyIt()
 		{
+			var bystander = Substitute.For<IMockSubscriber>();
+
 			_messageBroker.Subscribe<MessageType1>(_subscriber.MockMessageCall);
 			_messageBroker.Subscribe<MessageType1>(_subscriber.MockMessageCall2);
-			_messageBroker.Unsubscribe<MessageType1>(_subscriber);
+			_messageBroker.Subscribe<MessageType1>(bystander.MockMessageCall);
+
 			_messageBroker.Publish(_messageType1);
-			_messageBroker.PublishSafe(_messageType1);
 
 			_subscriber.DidNotReceive().MockMessageCall(_messageType1);
-			_subscriber.DidNotReceive().MockMessageCall2(_messageType1);
+			_subscriber.Received(1).MockMessageCall2(_messageType1);
+
+			_messageBroker.Unsubscribe<MessageType1>(_subscriber);
+			_messageBroker.Publish(_messageType1);
+
+			_subscriber.Received(1).MockMessageCall2(_messageType1);
+			bystander.Received(2).MockMessageCall(_messageType1);
 		}
 
 		[Test]

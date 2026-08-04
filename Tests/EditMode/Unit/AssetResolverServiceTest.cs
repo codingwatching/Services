@@ -27,13 +27,27 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AssetResolverService.AddAssets<TId> must store the caller's AssetReference under its id in the
+		// per-asset-type map that every RequestAsset / UnloadAssets lookup reads.
+		// RCR: AssetResolverService.cs AddAssets<TId> — store `null` instead of `assets[i].Value` → RED (AreSame
+		// fails). Broad: also reddens the other AssetMap assertions in this fixture. 2026-08-04
 		public void AddAsset_NewType_RegistersEntry()
 		{
 			var assetRef = new AssetReference();
-			Assert.DoesNotThrow(() => _service.AddAsset<int>(typeof(Sprite), 1, assetRef));
+
+			_service.AddAsset<int>(typeof(Sprite), 1, assetRef);
+
+			var map = (Dictionary<int, AssetReference>) _service.AssetMap[typeof(Sprite)][typeof(int)];
+
+			Assert.AreEqual(1, map.Count);
+			Assert.AreSame(assetRef, map[1]);
 		}
 
 		[Test]
+		// ADMIT: AssetResolverService.AddAssets<TId> merges a second registration for the same (assetType, idType)
+		// pair into the existing map instead of replacing it.
+		// RCR: AssetResolverService.cs AddAssets<TId> — delete `assetReferences.Add(asset.Key, asset.Value);` from the
+		// merge loop → RED (Count is 1 and ref1 is gone). Unique: no other test reaches the merge branch. 2026-08-04
 		public void AddAssets_DuplicateType_MergesEntries()
 		{
 			var ref1 = new AssetReference();
@@ -48,8 +62,11 @@ namespace GameLoversEditor.Services.Tests
 				new Pair<int, AssetReference>(2, ref2)
 			});
 
-			// Both entries should now exist — verifiable via UnloadAssets without throwing
-			Assert.DoesNotThrow(() => _service.UnloadAssets<int, Sprite>(false));
+			var map = (Dictionary<int, AssetReference>) _service.AssetMap[typeof(Sprite)][typeof(int)];
+
+			Assert.AreEqual(2, map.Count);
+			Assert.AreSame(ref1, map[1]);
+			Assert.AreSame(ref2, map[2]);
 		}
 
 		[Test]
@@ -119,22 +136,41 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AssetResolverService.UnloadAssets<TId,TAsset>(bool, AssetConfigsScriptableObject) clears only the ids
+		// the container lists, leaving every other registered id in the map.
+		// RCR: AssetResolverService.cs UnloadAssets(bool, AssetConfigsScriptableObject) — delete
+		// `dictionary.Remove(pair.Key);` → RED (Count is 3, not 1). Unique to that overload. 2026-08-04
 		public void UnloadAssets_WithAssetConfigsContainer_ReleasesAssetsInContainer()
 		{
+			_service.AddAssets(typeof(Sprite), new List<Pair<int, AssetReference>>
+			{
+				new Pair<int, AssetReference>(1, new AssetReference()),
+				new Pair<int, AssetReference>(2, new AssetReference()),
+				new Pair<int, AssetReference>(3, new AssetReference())
+			});
+
 			var so = ScriptableObject.CreateInstance<TestSpriteConfigs>();
 			so.Configs = new List<Pair<int, AssetReference>>
 			{
 				new Pair<int, AssetReference>(1, new AssetReference()),
 				new Pair<int, AssetReference>(2, new AssetReference())
 			};
-			_service.AddAssets(typeof(Sprite), so.Configs);
 
-			Assert.DoesNotThrow(() => _service.UnloadAssets<int, Sprite>(clearReferences: false, assetConfigs: so));
+			_service.UnloadAssets<int, Sprite>(clearReferences: true, assetConfigs: so);
+
+			var map = (Dictionary<int, AssetReference>) _service.AssetMap[typeof(Sprite)][typeof(int)];
+
+			Assert.AreEqual(1, map.Count);
+			Assert.IsTrue(map.ContainsKey(3));
 
 			UnityEngine.Object.DestroyImmediate(so);
 		}
 
 		[Test]
+		// ADMIT: AssetResolverService.UnloadAssets<TId,TAsset>(bool, params TId[]) removes only the listed ids from the
+		// id map rather than clearing it wholesale.
+		// RCR: AssetResolverService.cs UnloadAssets(bool, params TId[]) — change `dictionary.Remove(id);` to
+		// `dictionary.Clear();` → RED (Count is 0, not 1). Unique to that overload. 2026-08-04
 		public void UnloadAssets_WithIdsArray_ReleasesOnlyMatching()
 		{
 			_service.AddAssets(typeof(Sprite), new List<Pair<int, AssetReference>>
@@ -144,13 +180,19 @@ namespace GameLoversEditor.Services.Tests
 				new Pair<int, AssetReference>(30, new AssetReference())
 			});
 
-			Assert.DoesNotThrow(() => _service.UnloadAssets<int, Sprite>(clearReferences: true, 10, 20));
+			_service.UnloadAssets<int, Sprite>(clearReferences: true, 10, 20);
 
-			// The non-matching id 30 must still be resolvable — a second clear on the remaining map entries should not warn
-			Assert.DoesNotThrow(() => _service.UnloadAssets<int, Sprite>(clearReferences: true, 30));
+			var map = (Dictionary<int, AssetReference>) _service.AssetMap[typeof(Sprite)][typeof(int)];
+
+			Assert.AreEqual(1, map.Count);
+			Assert.IsTrue(map.ContainsKey(30));
 		}
 
 		[Test]
+		// ADMIT: IAssetAdderService.AddConfigs<TId,TAsset>, a C# 8 default interface method, forwards the container's
+		// own Configs list to AssetResolverService.AddAssets.
+		// RCR: AssetResolverService.cs IAssetAdderService.AddConfigs — forward an empty list instead of
+		// `configs.Configs` → RED (Count is 0, not 1). Unique: only this test goes through the default method. 2026-08-04
 		public void AddConfigs_DelegatesToAddAssets()
 		{
 			var so = ScriptableObject.CreateInstance<TestSpriteConfigs>();
@@ -160,10 +202,12 @@ namespace GameLoversEditor.Services.Tests
 			};
 
 			IAssetAdderService adderService = _service;
-			Assert.DoesNotThrow(() => adderService.AddConfigs<int, Sprite>(so));
+			adderService.AddConfigs<int, Sprite>(so);
 
-			// Registered via the default interface method — subsequent unload should not warn
-			Assert.DoesNotThrow(() => _service.UnloadAssets<int, Sprite>(clearReferences: true));
+			var map = (Dictionary<int, AssetReference>) _service.AssetMap[typeof(Sprite)][typeof(int)];
+
+			Assert.AreEqual(1, map.Count);
+			Assert.IsTrue(map.ContainsKey(7));
 
 			UnityEngine.Object.DestroyImmediate(so);
 		}
