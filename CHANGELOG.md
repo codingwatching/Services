@@ -4,32 +4,16 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-**Docs**:
-- Completed this package against the host `AGENTS.md` §6.6: `Tools/style-audit.py` now reports 0 items for `com.gamelovers.services`. Documented the internal editor-introspection accessors as a set (`AssetMap`, `ActiveAsyncCoroutines`, `DataEntries`, `Bindings`, `InstallerInstance`, `Subscriptions`, `IsPublishing`, `Pools`, the three tick lists, `ExtraTime`, `InitialTime`), each cross-referencing §4 rather than restating it; `ObjectPoolBase`'s subclassing surface, including why `SpawnEntity` loops through `IsDestroyedOrNull` and why the `CallOn*` hooks are virtual; the `AssetsConfigsImporter` extension points (`IdPattern`, `OnImportIds`, `IndexOfId`, `OnImportComplete`) and the generator importer's three abstract members; the `AddressableIdsEditorSettings` snapshot readouts, noting that a filename or label-filter change is what makes a snapshot stale; and `CommandService`'s two protected members. The 19 Explorer-tab `DisplayName` / `RefreshIntervalMs` overrides now use `/// <inheritdoc />` against `ServiceTab`'s existing summaries.
-- Removed the `/// <inheritdoc />` from `ScriptNameEditAction.Action` / `Cancelled` (both `#if` branches). They are `public override`s of a Unity base, but sit inside a `private` nested class, so §6.6 treats them as private — a member unreachable from outside its enclosing type gets no XML doc.
-
-- Aligned XML doc comments with the host repo's `AGENTS.md` §6.6. Removed the `AssetReferenceScene` constructor's doc block. Of the 12 doc comments on private members, the four that only restated the member's own name were deleted outright (`GitEditorProcess.ExecuteCommand`, `VersionEditorUtils.OnEditorLoad` / `SaveVersionData`, `RngService.NextNumber`); the rest were reduced to the part the code genuinely cannot state — `ObjectPoolBase.IsDestroyedOrNull`'s fake-null explanation kept in full, `VersionServices.Bootstrap` cut to the cross-assembly `SubsystemRegistration` race, `SortedSetDiff` to its unenforced pre-sorted precondition, and the two Explorer digest helpers to a pointer at this file's §4 rather than restating it. Added `/// <inheritdoc />` to 41 overrides whose base documentation already exists (the Explorer tab `BuildUi`/`Refresh` family, plus `Equals`/`GetHashCode` on `TickData`). Moved the internal `AddressableIdsGeneratorUtils.BuildEnumSource` and `AssetResolverService.SelectAsset` test seams above their types' private blocks, per §6.6's rule that `internal` is never interleaved with `private`, and dropped the change-narration sentences from both summaries ("Extracted from …; no behaviour change versus the logic it replaces") which §6.6 forbids.
-
-**Fixed**:
-- `TickService`'s constructor opened with an `if (_tickObject != null) throw new InvalidOperationException("...initialized for the second time...")` guard that could never fire: `_tickObject` is a `readonly` **instance** field assigned later in that same constructor, so it was always `null` when checked. The guard advertised singleton protection the service deliberately does not provide (see `AGENTS.md` §4 — constructing multiple instances creates multiple host GameObjects, and `TickServiceTest.MultipleInstances_CreateMultipleGameObjects` pins that). Removed; `CoroutineService`, which has the same host-spawning shape, never carried one.
-- `GameObjectPool.Dispose(bool disposeSampleEntity)` and `GameObjectPool<T>.Dispose(bool)` destroyed `SampleEntity` unconditionally, ignoring the argument — `Dispose(false)` destroyed a sample entity the caller explicitly asked to keep.
-- `ObjectPoolBase<T>.SpawnEntity` could hand out a destroyed pooled object. Its retry loop tested `entity == null`, which inside a generic constrained only to `class` compiles to plain reference equality and never reaches `UnityEngine.Object`'s overloaded `==` that detects a destroyed ("fake-null") native object. A pooled `GameObject`/`Behaviour` destroyed by an external owner while despawned was therefore returned to the next `Spawn()` caller, who hit a `MissingReferenceException` a frame later. Now routed through a runtime type check that dispatches to the Unity overload when the entity is a `UnityEngine.Object`, and falls back to reference equality for POCO pooled types.
-- `AddressableIdsGeneratorUtils` emitted duplicate enum members when two Addressable addresses sanitized to the same C# identifier (e.g. `ui/main-menu` and `ui-main/menu` both clean to `ui_main_menu`), producing generated code that does not compile. The member-append path now uses the disambiguated name it already computed instead of re-deriving the raw cleaned name.
+## [2.1.2] - 2026-08-04
 
 **Changed**:
-- `package.json` now declares `com.unity.test-framework.performance` (3.5.0). Both test asmdefs already referenced `Unity.PerformanceTesting` unconditionally, so consumers without that package installed hit a missing-assembly compile error in this package's test assemblies.
-
-## [2.1.2] - 2026-07-29
+- Added the `com.unity.test-framework.performance` (3.5.0) dependency so the package's test assemblies compile when tests are enabled.
 
 **Fixed**:
-- Renamed `Tests/EditMode/GameLovers.Services.Tests.asmdef` to `GameLovers.Services.Editor.Tests.asmdef` to match its own `name` field (`GameLovers.Services.Editor.Tests`); GUID preserved via `git mv` on the paired `.meta`.
-- `Tests/PlayMode/GameLovers.Services.Tests.Playmode.asmdef` no longer sets `autoReferenced: true` (was the only test asmdef in the repo doing so). Test discovery is unaffected — the Test Runner finds test assemblies via the `UNITY_INCLUDE_TESTS` define constraint, independent of `autoReferenced`.
-
-**Docs**:
-- `Samples~/ServicesPlayground`'s `package.json` description no longer claims the sample UI "is built programmatically" — it ships as a hand-authored prefab (`ServicesPlaygroundUI.prefab`) with a `[SerializeField]`-wired driver script.
-- Converged `README.md`'s repository links on the actual origin.
+- Fixed `GameObjectPool.Dispose(false)` and its generic equivalent so they preserve the sample entity when requested.
+- Fixed pooling of Unity objects so destroyed pooled `GameObject` and `Behaviour` instances are skipped instead of being returned to callers.
+- Fixed Addressable ID enum generation so addresses that sanitize to the same C# identifier receive distinct members.
+- Fixed the Services Playground Input System setup by assigning default actions when its UI module is created, so sample controls respond as expected.
 
 ## [2.1.1] - 2026-07-04
 
