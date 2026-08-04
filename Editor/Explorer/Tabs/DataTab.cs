@@ -13,12 +13,14 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class DataTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Data";
 
 		private ScrollView _scroll;
 		private VisualElement _list;
 		private Label _countLabel;
 
+		/// <inheritdoc />
 		protected override void BuildUi()
 		{
 			var header = new VisualElement();
@@ -39,6 +41,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		Add(bar);
 	}
 
+		/// <inheritdoc />
 		protected override void Refresh()
 		{
 			_list.Clear();
@@ -112,6 +115,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		// mode. Belt-and-braces against bootstraps that fail to call MainInstaller.Clean()
 		// in OnDestroy — the DataService entries dictionary lives on the service instance
 		// and would otherwise surface as a stale snapshot in edit mode.
+		/// <inheritdoc />
 		protected override void OnExitingPlayMode()
 		{
 			_countLabel.text = "Entries: 0";

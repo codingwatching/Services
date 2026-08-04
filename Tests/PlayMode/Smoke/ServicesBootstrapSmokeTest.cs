@@ -18,6 +18,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: bootstrap regression -- the services assembly stops loading, or a service ctor gains a hard dependency.
+		// RCR: none required -- Tests/AGENTS.md §1 exempts Smoke/ fixtures from A1/A2; construction-without-throwing
+		// is the whole contract here.
 		public void AllServices_Instantiate_WithoutException()
 		{
 			Assert.DoesNotThrow(() => new MessageBrokerService());
@@ -46,6 +49,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: bootstrap regression -- the MainInstaller bind/resolve round trip breaks at assembly load.
+		// RCR: none required -- Smoke/ exemption (Tests/AGENTS.md §1). The same round trip is pinned in depth by
+		// ServiceLifecycleTest.MainInstaller_BindServices_ResolveAll_Successfully; this copy is the bootstrap canary.
 		public void MainInstaller_BindResolve_Works()
 		{
 			var broker = new MessageBrokerService();
@@ -54,6 +60,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: bootstrap regression -- publishing into an empty broker throws at assembly load.
+		// RCR: none required -- Smoke/ exemption (Tests/AGENTS.md §1). The no-subscribers early return is duplicated
+		// verbatim in Publish and PublishSafe, so no anchor is unique to the overload this test calls.
 		public void MessageBroker_PublishWithoutSubscribers_Works()
 		{
 			var broker = new MessageBrokerService();

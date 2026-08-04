@@ -114,17 +114,15 @@ namespace GameLovers.Services
 
 		private int _tickDataIdRef;
 
+		/// <summary>Subscribers driven from Update. Editor introspection only — see AGENTS.md §4.</summary>
 		internal IReadOnlyList<TickData> OnUpdateList => _onUpdateList;
+		/// <summary>Subscribers driven from FixedUpdate. Editor introspection only — see AGENTS.md §4.</summary>
 		internal IReadOnlyList<TickData> OnFixedUpdateList => _onFixedUpdateList;
+		/// <summary>Subscribers driven from LateUpdate. Editor introspection only — see AGENTS.md §4.</summary>
 		internal IReadOnlyList<TickData> OnLateUpdateList => _onLateUpdateList;
 		
 		public TickService()
 		{
-			if (_tickObject != null)
-			{
-				throw new InvalidOperationException("The tick service is being initialized for the second time and that is not valid");
-			}
-
 			var gameObject = new GameObject(typeof(TickServiceMonoBehaviour).Name);
 			
 			Object.DontDestroyOnLoad(gameObject);
@@ -366,6 +364,7 @@ namespace GameLovers.Services
 			}
 		}
 
+		/// <summary>One tick subscription: its action, cadence and bookkeeping. Editor introspection only — see AGENTS.md §4.</summary>
 		internal struct TickData
 		{
 			public int Id;
@@ -376,16 +375,19 @@ namespace GameLovers.Services
 			public float LastTickTime;
 			public object Subscriber;
 
+			/// <summary>Two entries match on <see cref="Id"/> alone, which is what unsubscribe relies on.</summary>
 			public bool Equals(TickData other)
 			{
 				return other.Id == Id;
 			}
 
+			/// <inheritdoc />
 			public override bool Equals(object other)
 			{
 				return other is TickData && Equals((TickData)other);
 			}
 
+			/// <inheritdoc />
 			public override int GetHashCode()
 			{
 				return Id;

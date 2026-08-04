@@ -20,6 +20,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: MessageBrokerService.Publish invokes each stored delegate, which is what turns a TickService callback
+		// into a delivered message.
+		// RCR: MessageBrokerService.cs Publish — drop the `action(message)` invocation → RED (messageReceived stays false
+		// after two frames). 2026-08-02
 		public IEnumerator TickService_WithMessageBroker_PublishesOnTick()
 		{
 			var tickService = new TickService();
@@ -38,6 +42,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[UnityTest]
+		// ADMIT: PoolService.Spawn<T> resolves the registered pool and returns its spawned instance.
+		// RCR: PoolService.cs Spawn<T> — return null instead of delegating to the pool → RED (Assert.IsNotNull(instance)
+		// fails). 2026-08-02
 		public IEnumerator PoolService_WithGameObjectPool_FullLifecycle()
 		{
 			var poolService = new PoolService();
@@ -59,6 +66,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: MainInstaller.Resolve<T> delegates to the private Installer so bound services come back out.
+		// RCR: MainInstaller.cs Resolve<T> — return default(T) instead of delegating → RED (all three IsNotNull assertions
+		// fail). Also reddens the PlayMode smoke bind/resolve test. 2026-08-02
 		public void MainInstaller_BindServices_ResolveAll_Successfully()
 		{
 			MainInstaller.Bind<ITickService>(new TickService());

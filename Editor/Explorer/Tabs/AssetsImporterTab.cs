@@ -15,13 +15,16 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class AssetsImporterTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Assets Importer";
+		/// <inheritdoc />
 		protected override int RefreshIntervalMs => 2000;
 
 		private Toggle _autoImportToggle;
 		private VisualElement _importerList;
 		private List<ImportData> _cachedImporters;
 
+		/// <inheritdoc />
 		protected override void BuildUi()
 		{
 			var scroll = new ScrollView(ScrollViewMode.Vertical);
@@ -54,6 +57,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			Add(bar);
 		}
 
+		/// <inheritdoc />
 		protected override void Refresh()
 		{
 			_autoImportToggle.SetValueWithoutNotify(AssetsImporterEditorSettings.instance.AutoUpdateOnRefresh);

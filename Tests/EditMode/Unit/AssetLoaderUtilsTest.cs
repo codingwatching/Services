@@ -19,6 +19,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AssetLoaderUtils.Interleaved fills the next free bucket per completion via the interlocked counter, so
+		// bucket N resolves to the Nth task to finish.
+		// RCR: AssetLoaderUtils.cs Interleaved.Continuation — always target bucket 0 → RED (buckets[1] and buckets[2]
+		// never complete). 2026-08-02
 		public void Interleaved_CompletesInCompletionOrder()
 		{
 			var tcs1 = new TaskCompletionSource<int>();

@@ -11,12 +11,14 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class InstallerTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Installer";
 
 		private ScrollView _scroll;
 		private VisualElement _list;
 		private VisualElement _actionBar;
 
+		/// <inheritdoc />
 		protected override void BuildUi()
 		{
 			_scroll = new ScrollView(ScrollViewMode.Vertical);
@@ -31,6 +33,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		Add(_actionBar);
 		}
 
+		/// <inheritdoc />
 		protected override void Refresh()
 		{
 			_list.Clear();
@@ -85,6 +88,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		// Belt-and-braces against bootstraps that fail to call MainInstaller.Clean() in
 		// OnDestroy — without this the static MainInstaller would surface stale bindings
 		// in the tab until the next play session.
+		/// <inheritdoc />
 		protected override void OnExitingPlayMode()
 		{
 			_list.Clear();

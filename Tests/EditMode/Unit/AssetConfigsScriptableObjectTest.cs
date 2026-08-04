@@ -15,6 +15,10 @@ namespace GameLoversEditor.Services.Tests
 		private class TestAssetConfigs : AssetConfigsScriptableObject<int, Sprite> { }
 
 		[Test]
+		// ADMIT: AssetConfigsScriptableObjectBase<TId,TAsset>.OnAfterDeserialize projects the serialized Configs list into
+		// ConfigsDictionary.
+		// RCR: AssetConfigsScriptableObject.cs OnAfterDeserialize — drop the per-pair `dictionary.Add` → RED
+		// (ConfigsDictionary.Count is 0, not 2). 2026-08-02
 		public void OnAfterDeserialize_RebuildsDictionaryFromConfigs()
 		{
 			var so = ScriptableObject.CreateInstance<TestAssetConfigs>();

@@ -19,6 +19,7 @@ namespace GameLovers.Services.Editor.Explorer
 		private TabView _tabView;
 		private readonly List<ServiceTab> _tabs = new List<ServiceTab>();
 
+		/// <summary>Opens the Services Explorer window.</summary>
 		[MenuItem("Tools/GameLovers/Services Explorer")]
 		public static void Open()
 		{

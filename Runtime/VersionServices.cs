@@ -16,6 +16,10 @@ namespace GameLovers.Services
 	{
 		public const string VersionDataFilename = "version-data";
 
+		/// <summary>
+		/// The shape of the <c>version-data</c> Resources text asset written by the editor's
+		/// versioning pass and parsed on load.
+		/// </summary>
 		[Serializable]
 		public struct VersionData
 		{
@@ -87,19 +91,8 @@ namespace GameLovers.Services
 		private static VersionData _versionData;
 		private static bool _loaded;
 
-		/// <summary>
-		/// Auto-bootstrap hook: populates version metadata at the earliest runtime phase Unity
-		/// exposes, before any scene <c>Awake</c> and before vendor SDK <c>SubsystemRegistration</c>
-		/// callbacks that read <see cref="VersionInternal"/> / <see cref="BuildNumber"/> (e.g.
-		/// Sentry's Option Config Script). Consumers no longer need to call
-		/// <see cref="LoadVersionData"/> / <see cref="LoadVersionDataAsync"/> explicitly for the
-		/// default flow.
-		/// </summary>
-		/// <remarks>
-		/// Ordering between <see cref="RuntimeInitializeLoadType.SubsystemRegistration"/> callbacks
-		/// across assemblies is undefined; if a sibling SDK's hook fires before this one, the
-		/// property accessors' lazy-load fallback (<see cref="EnsureLoaded"/>) covers the race.
-		/// </remarks>
+		// SubsystemRegistration ordering across assemblies is undefined, so a sibling SDK reading VersionInternal
+		// may still beat this; the accessors' EnsureLoaded fallback is what actually closes that race.
 		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
 		private static void Bootstrap()
 		{

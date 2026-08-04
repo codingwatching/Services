@@ -182,7 +182,9 @@ namespace GameLovers.Services.Samples.ServicesPlayground
 			{
 				DestroyImmediate(legacy);
 			}
-			go.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+			// AddComponent leaves the module's actions unassigned, and an unassigned module silently
+			// processes no input at all -- every button appears dead with nothing logged.
+			go.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>().AssignDefaultActions();
 #else
 			if (go.GetComponent<StandaloneInputModule>() == null)
 			{

@@ -23,6 +23,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AssetsImporterEditorSettings.AutoUpdateOnRefresh's setter stores the caller's value on the backing field
+		// before persisting.
+		// RCR: AssetsImporterEditorSettings.cs AutoUpdateOnRefresh setter — hard-code the stored value to false → RED (the
+		// getter never reports true). 2026-08-02
 		public void AutoUpdateOnRefresh_SetterRoundTrips_PreservesValue()
 		{
 			AssetsImporterEditorSettings.instance.AutoUpdateOnRefresh = true;

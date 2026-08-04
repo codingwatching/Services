@@ -4,6 +4,17 @@ All notable changes to this package will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2026-08-04
+
+**Changed**:
+- Added the `com.unity.test-framework.performance` (3.5.0) dependency so the package's test assemblies compile when tests are enabled.
+
+**Fixed**:
+- Fixed `GameObjectPool.Dispose(false)` and its generic equivalent so they preserve the sample entity when requested.
+- Fixed pooling of Unity objects so destroyed pooled `GameObject` and `Behaviour` instances are skipped instead of being returned to callers.
+- Fixed Addressable ID enum generation so addresses that sanitize to the same C# identifier receive distinct members.
+- Fixed the Services Playground Input System setup by assigning default actions when its UI module is created, so sample controls respond as expected.
+
 ## [2.1.1] - 2026-07-04
 
 **Changed**:

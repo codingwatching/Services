@@ -29,7 +29,10 @@ namespace GameLovers.Services.Pooling
 		/// <inheritdoc />
 		public override void Dispose(bool disposeSampleEntity)
 		{
-			Object.Destroy(SampleEntity);
+			if (disposeSampleEntity)
+			{
+				Object.Destroy(SampleEntity);
+			}
 
 			base.Dispose(disposeSampleEntity);
 		}
@@ -63,6 +66,7 @@ namespace GameLovers.Services.Pooling
 			return instance;
 		}
 
+		/// <inheritdoc />
 		protected override GameObject SpawnEntity()
 		{
 			var entity = base.SpawnEntity();
@@ -96,6 +100,7 @@ namespace GameLovers.Services.Pooling
 			poolEntity?.OnDespawn();
 		}
 
+		/// <inheritdoc />
 		protected override void PostDespawnEntity(GameObject entity)
 		{
 			entity.SetActive(false);
@@ -130,7 +135,10 @@ namespace GameLovers.Services.Pooling
 		/// <inheritdoc />
 		public override void Dispose(bool disposeSampleEntity)
 		{
-			Object.Destroy(SampleEntity.gameObject);
+			if (disposeSampleEntity)
+			{
+				Object.Destroy(SampleEntity.gameObject);
+			}
 
 			base.Dispose(disposeSampleEntity);
 		}
@@ -167,6 +175,7 @@ namespace GameLovers.Services.Pooling
 			return instance;
 		}
 
+		/// <inheritdoc />
 		protected override T SpawnEntity()
 		{
 			T entity = null;
@@ -212,6 +221,7 @@ namespace GameLovers.Services.Pooling
 			poolEntity?.OnDespawn();
 		}
 
+		/// <inheritdoc />
 		protected override void PostDespawnEntity(T entity)
 		{
 			entity.gameObject.SetActive(false);

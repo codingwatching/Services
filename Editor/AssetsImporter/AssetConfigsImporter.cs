@@ -115,11 +115,16 @@ namespace GameLovers.Services.AssetsImporter.Editor
 					  $"To: '{typeof(TScriptableObject).Name}' - From '{scriptableObject.AssetsFolderPath}' ");
 		}
 
+		/// <summary>The filename fragment an id is matched against; override when assets are not named after the id.</summary>
 		protected virtual string IdPattern(TId id)
 		{
 			return id.ToString();
 		}
 
+		/// <summary>
+		/// Pairs each id with the asset whose path contains it, skipping ids with no match.
+		/// Override to change how ids are mapped onto the discovered assets.
+		/// </summary>
 		protected virtual List<Pair<TId, AssetReference>> OnImportIds(TScriptableObject scriptableObject,
 																	  List<string> assetGuids,
 																	  List<string> assetsPaths)
@@ -142,6 +147,7 @@ namespace GameLovers.Services.AssetsImporter.Editor
 			return list;
 		}
 
+		/// <summary>Index of the first path containing <c>/{id}.</c>, or -1; the dot is what stops a prefix matching.</summary>
 		protected int IndexOfId(string id, IList<string> assetsPath)
 		{
 			for (var i = 0; i < assetsPath.Count; i++)
@@ -155,16 +161,20 @@ namespace GameLovers.Services.AssetsImporter.Editor
 			return -1;
 		}
 
+		/// <summary>Runs after the import has written the asset; the base implementation does nothing.</summary>
 		protected virtual void OnImportComplete(TScriptableObject scriptableObject) { }
 	}
 
 	/// <inheritdoc />
 	public abstract class AssetsConfigsGeneratorImporter<TAsset> : IAssetConfigsGeneratorImporter
 	{
+		/// <summary>Assembly-qualified name of the id enum the generated script should use.</summary>
 		public abstract string TIdName { get; }
 
+		/// <summary>Assembly-qualified name of the configs ScriptableObject the generated script should target.</summary>
 		public abstract string TScriptableObjectName { get; }
 
+		/// <summary>When true the previous generated script is kept as a backup before being overwritten.</summary>
 		public virtual bool CacheScriptAsOld => true;
 
 		/// <inheritdoc />

@@ -16,7 +16,9 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class OverviewTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Overview";
+		/// <inheritdoc />
 		protected override int RefreshIntervalMs => 1000;
 
 		private readonly ServicesExplorerWindow _window;
@@ -27,6 +29,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			_window = window;
 		}
 
+		/// <inheritdoc />
 		protected override void BuildUi()
 		{
 			var scroll = new ScrollView(ScrollViewMode.Vertical);
@@ -39,6 +42,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			Add(scroll);
 		}
 
+		/// <inheritdoc />
 		protected override void Refresh()
 		{
 			_grid.Clear();

@@ -321,9 +321,6 @@ namespace GameLovers.Services
 			return state;
 		}
 
-		/// <summary>
-		/// Generates the next random number between [0...int.MaxValue] based on the given <paramref name="rndState"/>
-		/// </summary>
 		private static int NextNumber(int[] rndState)
 		{
 			var index1 = rndState[_valueIndex] + 1;

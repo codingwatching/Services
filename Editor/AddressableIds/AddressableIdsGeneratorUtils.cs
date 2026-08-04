@@ -241,6 +241,24 @@ namespace GameLovers.Services.AddressableIds.Editor
 			return scriptPath;
 		}
 
+		/// <summary>
+		/// Pure string-builder: turns <paramref name="addresses"/> into the generated C# enum member-block
+		/// source text (opening brace, one member per address, closing brace) that <see cref="GenerateScript"/>
+		/// inserts after the <c>public enum &lt;Name&gt;</c> header line. Takes no <c>AssetDatabase</c>
+		/// dependency — operates on plain address strings only, so it is directly unit-testable.
+		/// </summary>
+		internal static string BuildEnumSource(IReadOnlyCollection<string> addresses)
+		{
+			var addressList = addresses as IReadOnlyList<string> ?? new List<string>(addresses);
+			var stringBuilder = new StringBuilder();
+
+			stringBuilder.AppendLine("\t{");
+			AppendAddressEnumMembers(stringBuilder, addressList);
+			stringBuilder.AppendLine("\t}");
+
+			return stringBuilder.ToString();
+		}
+
 		private static List<AddressableAssetEntry> GetAssetList()
 		{
 			var assetList = new List<AddressableAssetEntry>();
@@ -278,9 +296,7 @@ namespace GameLovers.Services.AddressableIds.Editor
 			stringBuilder.AppendLine("{");
 
 			stringBuilder.AppendLine($"\tpublic enum {settings.ScriptFilename}");
-			stringBuilder.AppendLine("\t{");
-			GenerateAddressEnums(stringBuilder, assetList);
-			stringBuilder.AppendLine("\t}");
+			stringBuilder.Append(BuildEnumSource(ExtractAddresses(assetList)));
 
 			stringBuilder.AppendLine("");
 			stringBuilder.AppendLine("\tpublic enum AddressableLabel");
@@ -485,27 +501,22 @@ namespace GameLovers.Services.AddressableIds.Editor
 			}
 		}
 
-		private static void GenerateAddressEnums(StringBuilder stringBuilder, IReadOnlyList<AddressableAssetEntry> assetList)
+		private static void AppendAddressEnumMembers(StringBuilder stringBuilder, IReadOnlyList<string> addresses)
 		{
 			var addedNames = new List<string>();
 
-			for (var i = 0; i < assetList.Count; i++)
+			for (var i = 0; i < addresses.Count; i++)
 			{
-				var name = ResolveSanitizedEnumName(assetList[i].address, addedNames, out _);
+				var name = ResolveSanitizedEnumName(addresses[i], addedNames, out _);
 				addedNames.Add(name);
 
 				stringBuilder.Append("\t\t");
-				stringBuilder.Append(GetCleanName(assetList[i].address, true));
-				stringBuilder.Append(i + 1 == assetList.Count ? "\n" : ",\n");
+				stringBuilder.Append(name);
+				stringBuilder.Append(i + 1 == addresses.Count ? "\n" : ",\n");
 			}
 		}
 
-		/// <summary>
-		/// Resolves the enum-member name for a given Addressable <paramref name="address"/>, applying the
-		/// same <c>name_filetype</c> fallback that <see cref="GenerateAddressEnums"/> uses when the cleaned
-		/// name collides with one already in <paramref name="seenNames"/>. Sets <paramref name="collided"/>
-		/// to <c>true</c> when the fallback path was taken.
-		/// </summary>
+		// Disambiguates a collision by re-cleaning the address with its file extension appended (name_filetype).
 		private static string ResolveSanitizedEnumName(string address, List<string> seenNames, out bool collided)
 		{
 			var name = GetCleanName(address, true);
@@ -566,10 +577,7 @@ namespace GameLovers.Services.AddressableIds.Editor
 			return nulls;
 		}
 
-		/// <summary>
-		/// Returns the elements of <paramref name="left"/> that are not in <paramref name="right"/>.
-		/// Both inputs MUST be pre-sorted ordinally; output is also sorted ordinally.
-		/// </summary>
+		// Both inputs must already be sorted ordinally; nothing here enforces it.
 		private static List<string> SortedSetDiff(IReadOnlyList<string> left, IReadOnlyList<string> right)
 		{
 			var result = new List<string>();

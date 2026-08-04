@@ -15,6 +15,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class MessageBrokerTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Message Broker";
 
 		private ScrollView _scroll;
@@ -25,6 +26,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		private readonly List<Type> _messageTypes = new List<Type>();
 		private int _lastDiscoveredAssemblyCount = -1;
 
+		/// <inheritdoc />
 		protected override void BuildUi()
 		{
 			_scroll = new ScrollView(ScrollViewMode.Vertical);
@@ -69,6 +71,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			RebuildMessageTypeChoices();
 		}
 
+		/// <inheritdoc />
 		protected override void Refresh()
 		{
 			RebuildMessageTypeChoicesIfStale();
@@ -82,6 +85,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		// reset (next domain reload) without this guard. Note: ServiceTab also invalidates
 		// the refresh digest on play-mode transitions, so the deferred refresh that lands
 		// after scene teardown will rebuild from scratch instead of short-circuiting.
+		/// <inheritdoc />
 		protected override void OnExitingPlayMode()
 		{
 			_list.Clear();
@@ -173,13 +177,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			}
 		}
 
-		/// <summary>
-		/// Builds a deterministic digest of every piece of state the rebuild path renders:
-		/// edit-mode-empty, not-bound, and per-subscription <c>(messageType, [target.method, ...])</c>
-		/// tuples. When two consecutive refreshes produce the same digest the rebuild can be
-		/// skipped — keeping rapid foldout clicks from getting destroyed mid-click by the
-		/// 250 ms timer.
-		/// </summary>
+		// Must cover every input the rebuild conditions on; see AGENTS.md §4.
 		private static string ComputeDigest(bool isPlaying, MessageBrokerService broker)
 		{
 			if (!isPlaying)

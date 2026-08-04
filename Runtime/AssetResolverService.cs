@@ -128,6 +128,7 @@ namespace GameLovers.Services
 		private readonly IDictionary<Type, IDictionary<Type, IDictionary>> _assetMap =
 			new Dictionary<Type, IDictionary<Type, IDictionary>>();
 
+		/// <summary>Registered assets, keyed by asset type then id type. Editor introspection only — see AGENTS.md §4.</summary>
 		internal IReadOnlyDictionary<Type, IDictionary<Type, IDictionary>> AssetMap =>
 			(IReadOnlyDictionary<Type, IDictionary<Type, IDictionary>>)_assetMap;
 
@@ -413,76 +414,94 @@ namespace GameLovers.Services
 			_errorClip = errorClip;
 		}
 
-		private TAsset Convert<TAsset>(AssetReference assetReference, bool instantiate)
+		/// <summary>
+		/// Resolves which asset to hand back, substituting the matching error placeholder when the
+		/// reference has not finished loading.
+		/// </summary>
+		internal static TAsset SelectAsset<TAsset>(Type type, Object asset, bool isDone, bool instantiate,
+			Sprite errorSprite, GameObject errorCube, Material errorMaterial, AudioClip errorClip)
 			where TAsset : Object
 		{
-			var type = typeof(TAsset);
-
-			/* AssetReference types
-			
-				GameObject
-				ScriptableObject
-				Texture
-				Texture3D
-				Texture2D
-				RenderTexture
-				CustomRenderTexture
-				CubeMap
-				Material
-				PhysicMaterial
-				PhysicMaterial2D
-				Sprite
-				SpriteAtlas
-				VideoClip
-				AudioClip
-				AudioMixer
-				Avatar
-				AnimatorController
-				AnimatorOverrideController
-				TextAsset
-				Mesh
-				Shader
-				ComputeShader
-				Flare
-				NavMeshData
-				TerrainData
-				TerrainLayer
-				Font
-				Scene
-				GUISkin
-			 * */
-
-			if (assetReference.Asset == null)
+			if (asset == null)
 			{
 				return null;
 			}
 
 			if (type == typeof(GameObject))
 			{
-				var asset = !assetReference.IsDone ? _errorCube : assetReference.Asset as GameObject;
+				var selected = !isDone ? errorCube : asset as GameObject;
 
-				return instantiate ? Object.Instantiate(asset) as TAsset : asset as TAsset;
+				return instantiate ? Object.Instantiate(selected) as TAsset : selected as TAsset;
 			}
 
 			if (type == typeof(Sprite))
 			{
-				return !assetReference.IsDone ? _errorSprite as TAsset : assetReference.Asset as TAsset;
+				return !isDone ? errorSprite as TAsset : asset as TAsset;
 			}
 
 			if (type == typeof(Material))
 			{
-				var asset = !assetReference.IsDone ? _errorMaterial : assetReference.Asset as Material;
+				var selected = !isDone ? errorMaterial : asset as Material;
 
-				return instantiate ? new Material(asset) as TAsset : asset as TAsset;
+				return instantiate ? new Material(selected) as TAsset : selected as TAsset;
 			}
 
 			if (type == typeof(AudioClip))
 			{
-				return !assetReference.IsDone ? _errorClip as TAsset : assetReference.Asset as TAsset;
+				return !isDone ? errorClip as TAsset : asset as TAsset;
 			}
 
-			return assetReference.Asset as TAsset;
+			return asset as TAsset;
 		}
+
+		private TAsset Convert<TAsset>(AssetReference assetReference, bool instantiate)
+			where TAsset : Object
+		{
+			return SelectAsset<TAsset>(typeof(TAsset), assetReference.Asset, assetReference.IsDone, instantiate,
+				_errorSprite, _errorCube, _errorMaterial, _errorClip);
+		}
+
+		/// <summary>
+		/// Pure type-switch that resolves the <typeparamref name="TAsset"/> to return for a given Addressables
+		/// <paramref name="asset"/>/<paramref name="isDone"/> pair, substituting the matching error placeholder
+		/// (<paramref name="errorSprite"/>/<paramref name="errorCube"/>/<paramref name="errorMaterial"/>/<paramref name="errorClip"/>)
+		/// when the reference has not finished loading. Kept separate from <see cref="Convert{TAsset}"/> so the
+		/// type-switch is directly testable.
+		/// </summary>
+		/*
+		 * AssetReference types
+
+			GameObject
+			ScriptableObject
+			Texture
+			Texture3D
+			Texture2D
+			RenderTexture
+			CustomRenderTexture
+			CubeMap
+			Material
+			PhysicMaterial
+			PhysicMaterial2D
+			Sprite
+			SpriteAtlas
+			VideoClip
+			AudioClip
+			AudioMixer
+			Avatar
+			AnimatorController
+			AnimatorOverrideController
+			TextAsset
+			Mesh
+			Shader
+			ComputeShader
+			Flare
+			NavMeshData
+			TerrainData
+			TerrainLayer
+			Font
+			Scene
+			GUISkin
+		 * */
 
 		private bool TryGetDictionary<TId, TAsset>(out Dictionary<TId, AssetReference> dictionary)
 		{

@@ -89,6 +89,7 @@ namespace GameLovers.Services
 	{
 		private readonly Dictionary<Type, object> _bindings = new Dictionary<Type, object>();
 
+		/// <summary>Current interface-to-instance bindings. Editor introspection only — see AGENTS.md §4.</summary>
 		internal IReadOnlyDictionary<Type, object> Bindings => _bindings;
 
 		/// <inheritdoc />

@@ -1,15 +1,14 @@
 {
-    "name": "GameLovers.Services.Editor",
-    "rootNamespace": "GameLovers.Services",
+    "name": "GameLovers.Services.Samples.ServicesPlayground",
+    "rootNamespace": "GameLovers.Services.Samples.ServicesPlayground",
     "references": [
         "GameLovers.Services",
         "GameLovers.GameData",
-        "GUID:9e24947de15b9834991c9d8411ea37cf",
-        "GUID:69448af7b92c7f342b298e06a37122aa"
+        "Unity.TextMeshPro",
+        "UnityEngine.UI",
+        "Unity.InputSystem"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
@@ -19,4 +18,3 @@
     "versionDefines": [],
     "noEngineReferences": false
 }
-

@@ -33,6 +33,9 @@ namespace GameLoversEditor.Services.Tests
 		// ---- IsValidIdentifier ----
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.IsValidIdentifier rejects an empty identifier before touching trimmed[0].
+		// RCR: AddressableIdsEditorSettings.cs IsValidIdentifier — return true from the empty branch → RED (Assert.IsFalse
+		// fails). Also reddens the whitespace-only sibling. 2026-08-02
 		public void IsValidIdentifier_EmptyString_ReturnsFalse()
 		{
 			Assert.IsFalse(AddressableIdsEditorSettings.IsValidIdentifier("", out var error));
@@ -40,6 +43,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.IsValidIdentifier uses IsNullOrWhiteSpace, so an all-whitespace identifier
+		// is rejected before trimmed[0] is indexed.
+		// RCR: AddressableIdsEditorSettings.cs IsValidIdentifier — weaken the guard to IsNullOrEmpty → RED
+		// (IndexOutOfRangeException on trimmed[0] for "   "). 2026-08-02
 		public void IsValidIdentifier_WhitespaceOnly_ReturnsFalse()
 		{
 			Assert.IsFalse(AddressableIdsEditorSettings.IsValidIdentifier("   ", out var error));
@@ -47,6 +54,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.IsValidIdentifier rejects a leading digit, which C# forbids in an enum
+		// member name.
+		// RCR: AddressableIdsEditorSettings.cs IsValidIdentifier — return true from the leading-digit branch → RED
+		// ("1AddressableId" is accepted). Also reddens IsValidNamespace_SegmentStartsWithDigit. 2026-08-02
 		public void IsValidIdentifier_StartsWithDigit_ReturnsFalse()
 		{
 			Assert.IsFalse(AddressableIdsEditorSettings.IsValidIdentifier("1AddressableId", out var error));
@@ -54,6 +65,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.IsValidIdentifier permits only letters, digits and underscore, so a dot is
+		// rejected.
+		// RCR: AddressableIdsEditorSettings.cs IsValidIdentifier — whitelist '.' in the character loop → RED
+		// ("Addressable.Id" is accepted). 2026-08-02
 		public void IsValidIdentifier_ContainsDot_ReturnsFalse()
 		{
 			Assert.IsFalse(AddressableIdsEditorSettings.IsValidIdentifier("Addressable.Id", out var error));
@@ -61,6 +76,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.IsValidIdentifier permits only letters, digits and underscore, so a hyphen
+		// is rejected.
+		// RCR: AddressableIdsEditorSettings.cs IsValidIdentifier — whitelist '-' in the character loop → RED
+		// ("Addressable-Id" is accepted). 2026-08-02
 		public void IsValidIdentifier_ContainsHyphen_ReturnsFalse()
 		{
 			Assert.IsFalse(AddressableIdsEditorSettings.IsValidIdentifier("Addressable-Id", out var error));
@@ -68,6 +87,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.IsValidIdentifier leaves `error` null on the success path.
+		// RCR: AddressableIdsEditorSettings.cs IsValidIdentifier — seed `error` to "" instead of null → RED
+		// (Assert.IsNull(error) fails). Also reddens the underscore-prefix sibling. 2026-08-02
 		public void IsValidIdentifier_ValidDefault_ReturnsTrue()
 		{
 			Assert.IsTrue(AddressableIdsEditorSettings.IsValidIdentifier("AddressableId", out var error));
@@ -75,6 +97,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.IsValidIdentifier explicitly allows underscore alongside letters and digits.
+		// RCR: AddressableIdsEditorSettings.cs IsValidIdentifier — drop the `c != '_'` exemption → RED ("_AddressableId"
+		// is rejected). 2026-08-02
 		public void IsValidIdentifier_UnderscorePrefix_ReturnsTrue()
 		{
 			Assert.IsTrue(AddressableIdsEditorSettings.IsValidIdentifier("_AddressableId", out var error));
@@ -84,6 +109,9 @@ namespace GameLoversEditor.Services.Tests
 		// ---- IsValidNamespace ----
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.IsValidNamespace rejects an empty namespace before splitting on '.'.
+		// RCR: AddressableIdsEditorSettings.cs IsValidNamespace — return true from the empty branch → RED (Assert.IsFalse
+		// fails). Also reddens the whitespace-only sibling. 2026-08-02
 		public void IsValidNamespace_EmptyString_ReturnsFalse()
 		{
 			Assert.IsFalse(AddressableIdsEditorSettings.IsValidNamespace("", out var error));
@@ -98,6 +126,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.IsValidNamespace rejects an empty segment, which is what a trailing dot
+		// produces.
+		// RCR: AddressableIdsEditorSettings.cs IsValidNamespace — return true from the empty-segment branch → RED
+		// ("Game.Ids." is accepted). Also reddens the consecutive-dots sibling. 2026-08-02
 		public void IsValidNamespace_TrailingDot_ReturnsFalse()
 		{
 			Assert.IsFalse(AddressableIdsEditorSettings.IsValidNamespace("Game.Ids.", out var error));
@@ -112,6 +144,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.IsValidNamespace validates each dot-separated segment through
+		// IsValidIdentifier.
+		// RCR: AddressableIdsEditorSettings.cs IsValidNamespace — return true from the invalid-segment branch → RED
+		// ("Game.1Ids" is accepted). 2026-08-02
 		public void IsValidNamespace_SegmentStartsWithDigit_ReturnsFalse()
 		{
 			Assert.IsFalse(AddressableIdsEditorSettings.IsValidNamespace("Game.1Ids", out var error));
@@ -119,6 +155,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.IsValidNamespace accepts a well-formed dot-separated namespace.
+		// RCR: AddressableIdsEditorSettings.cs IsValidNamespace — return false from the success path → RED ("Game.Ids" is
+		// rejected). Also reddens the single-segment and deep-hierarchy siblings. 2026-08-02
 		public void IsValidNamespace_ValidDefault_ReturnsTrue()
 		{
 			Assert.IsTrue(AddressableIdsEditorSettings.IsValidNamespace("Game.Ids", out var error));
@@ -142,6 +181,10 @@ namespace GameLoversEditor.Services.Tests
 		// ---- Setter normalization ----
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.ScriptFilename's setter trims surrounding whitespace and substitutes the
+		// default for null.
+		// RCR: AddressableIdsEditorSettings.cs ScriptFilename setter — drop the `.Trim()` → RED (the padded value is
+		// stored verbatim, AreEqual("CustomFilename", …) fails). 2026-08-02
 		public void ScriptFilename_SetterNormalizesAndPersists()
 		{
 			AddressableIdsEditorSettings.instance.ScriptFilename = "  CustomFilename  ";
@@ -154,6 +197,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.Namespace's setter trims surrounding whitespace and substitutes the default
+		// for null.
+		// RCR: AddressableIdsEditorSettings.cs Namespace setter — drop the `.Trim()` → RED (the padded value is stored
+		// verbatim). 2026-08-02
 		public void Namespace_SetterNormalizesAndPersists()
 		{
 			AddressableIdsEditorSettings.instance.Namespace = "  Custom.Namespace  ";
@@ -166,6 +213,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: AddressableIdsEditorSettings.AddressableLabel's setter trims surrounding whitespace and maps null to the
+		// empty filter.
+		// RCR: AddressableIdsEditorSettings.cs AddressableLabel setter — drop the `.Trim()` → RED ("  custom-label  " is
+		// stored verbatim). 2026-08-02
 		public void AddressableLabel_SetterNormalizesAndPersists()
 		{
 			AddressableIdsEditorSettings.instance.AddressableLabel = "  custom-label  ";

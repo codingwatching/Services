@@ -8,12 +8,14 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class CoroutineTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Coroutine";
 
 		private ScrollView _scroll;
 		private VisualElement _list;
 		private Label _totalLabel;
 
+		/// <inheritdoc />
 		protected override void BuildUi()
 		{
 			var header = new VisualElement();
@@ -34,6 +36,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		Add(bar);
 		}
 
+		/// <inheritdoc />
 		protected override void Refresh()
 		{
 			_list.Clear();
@@ -87,6 +90,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		// Forcibly clear the active-coroutine list synchronously when the user stops
 		// play mode. Belt-and-braces against bootstraps that fail to dispose the
 		// coroutine service / call MainInstaller.Clean() in OnDestroy.
+		/// <inheritdoc />
 		protected override void OnExitingPlayMode()
 		{
 			_totalLabel.text = "Active: 0";

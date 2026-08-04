@@ -10,7 +10,9 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class RngTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "RNG";
+		/// <inheritdoc />
 		protected override int RefreshIntervalMs => 500;
 
 		private const string PeekTooltip =
@@ -34,6 +36,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		private SliderInt _restoreSlider;
 		private IntegerField _restoreCountField;
 
+		/// <inheritdoc />
 		protected override void BuildUi()
 		{
 			var scroll = new ScrollView(ScrollViewMode.Vertical);
@@ -160,6 +163,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			Add(scroll);
 		}
 
+		/// <inheritdoc />
 		protected override void Refresh()
 		{
 			// Hide RNG state in edit mode (initial OR after a play session ended) regardless
@@ -189,6 +193,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 		// Forcibly clear all RNG-state widgets when the user stops play mode. Belt-and-braces
 		// guarantee that the tab does not retain a frozen "last play" snapshot even if the
 		// consumer's bootstrap forgot to call MainInstaller.Clean() in OnDestroy.
+		/// <inheritdoc />
 		protected override void OnExitingPlayMode()
 		{
 			ShowUnboundState();

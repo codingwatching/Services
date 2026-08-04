@@ -69,6 +69,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: PoolService.TryGetPool casts the stored IObjectPool to IObjectPool<T> and outs it.
+		// RCR: PoolService.cs TryGetPool — out null instead of the cast pool → RED (AreEqual(_pool, pool) fails). Also
+		// reddens GetPool_Successfully. 2026-08-02
 		public void TryGetPool_Successfully()
 		{
 			Assert.True(_poolService.TryGetPool<IMockPoolableEntity>(out var pool));
@@ -76,6 +79,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: PoolService.GetPool returns the pool TryGetPool resolved for the requested type.
+		// RCR: PoolService.cs GetPool — return null after the guard → RED (AreEqual(_pool, …) fails). Other Spawn/Despawn
+		// tests fail by NRE under this mutation. 2026-08-02
 		public void GetPool_Successfully()
 		{
 			Assert.AreEqual(_pool, _poolService.GetPool<IMockPoolableEntity>());
@@ -88,12 +94,19 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: PoolService.AddPool uses Dictionary.Add, so registering a second pool for the same type throws instead of
+		// silently replacing.
+		// RCR: PoolService.cs AddPool — switch to the indexer assignment → RED (no ArgumentException is thrown).
+		// 2026-08-02
 		public void AddPool_SameType_ThrowsException()
 		{
 			Assert.Throws<ArgumentException>(() => _poolService.AddPool(_pool));
 		}
 
 		[Test]
+		// ADMIT: PoolService.Spawn<T> delegates to the registered pool and returns its instance.
+		// RCR: PoolService.cs Spawn<T> — return null instead of delegating → RED (Assert.IsNotNull(entity) fails).
+		// 2026-08-02
 		public void Spawn_Successfully()
 		{
 			var entity = _poolService.Spawn<IMockPoolableEntity>();
@@ -103,6 +116,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: PoolService.GetPool throws ArgumentException when no pool is registered for the requested type.
+		// RCR: PoolService.cs GetPool — return null instead of throwing → RED (NullReferenceException, not
+		// ArgumentException). Also reddens Despawn_NotAddedPool and RemovePool_Successfully. 2026-08-02
 		public void Spawn_NotAddedPool_ThrowsException()
 		{
 			_poolService = new PoolService();
@@ -119,6 +135,10 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: PoolService.Despawn<T> routes through GetPool, so despawning into an unregistered type surfaces GetPool's
+		// ArgumentException.
+		// RCR: PoolService.cs Despawn<T> — return false without resolving the pool → RED (no ArgumentException is thrown).
+		// 2026-08-02
 		public void Despawn_NotAddedPool_ThrowsException()
 		{
 			var entity = new MockPoolableEntity();
@@ -138,6 +158,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: PoolService.RemovePool deletes the registry entry so a later GetPool throws.
+		// RCR: PoolService.cs RemovePool — drop the dictionary removal → RED (GetPool still resolves, no
+		// ArgumentException). Also reddens Dispose_RemovesAndDisposesPool. 2026-08-02
 		public void RemovePool_Successfully()
 		{
 			_poolService.RemovePool<IMockPoolableEntity>();
@@ -154,6 +177,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: PoolService.Spawn<T, TData> forwards the payload to the pool's data-aware Spawn overload.
+		// RCR: PoolService.cs Spawn<T, TData> — call the parameterless Spawn instead → RED (SpawnData stays 0, not 42).
+		// 2026-08-02
 		public void SpawnWithData_Successfully()
 		{
 			var dataPool = new ObjectPool<IMockDataEntity>(0, () => new MockDataEntity());
@@ -166,6 +192,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: PoolService.Clear returns a snapshot of the registry it is about to empty.
+		// RCR: PoolService.cs Clear — return an empty dictionary instead of a copy of _pools → RED (cleared.Count is 0,
+		// not 1). 2026-08-02
 		public void Clear_ReturnsAllPools()
 		{
 			IDictionary<Type, IObjectPool> cleared = _poolService.Clear();
@@ -176,6 +205,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: PoolService.Dispose<T>(bool) unregisters the pool after disposing it.
+		// RCR: PoolService.cs Dispose<T>(bool) — drop the `RemovePool<T>()` call → RED (TryGetPool still resolves the
+		// disposed pool). 2026-08-02
 		public void Dispose_RemovesAndDisposesPool()
 		{
 			_poolService.Dispose<IMockPoolableEntity>(disposeSampleEntity: false);
@@ -184,6 +216,9 @@ namespace GameLoversEditor.Services.Tests
 		}
 
 		[Test]
+		// ADMIT: PoolService.Dispose() disposes every registered pool before clearing the registry.
+		// RCR: PoolService.cs Dispose() — drop the per-pool `Dispose()` call → RED (both fakes report DisposeCount 0).
+		// 2026-08-02
 		public void Dispose_DisposesAllRegisteredPools()
 		{
 			var fakeA = new FakeObjectPool<IMockPoolableEntity>();

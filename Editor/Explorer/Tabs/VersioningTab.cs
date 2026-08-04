@@ -14,7 +14,9 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 	/// </summary>
 	public class VersioningTab : ServiceTab
 	{
+		/// <inheritdoc />
 		public override string DisplayName => "Versioning";
+		/// <inheritdoc />
 		protected override int RefreshIntervalMs => 2000;
 
 		private Label _externalLabel;
@@ -36,6 +38,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			}
 		}
 
+		/// <inheritdoc />
 		protected override void BuildUi()
 		{
 			var scroll = new ScrollView(ScrollViewMode.Vertical);
@@ -73,6 +76,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			Add(scroll);
 		}
 
+		/// <inheritdoc />
 		protected override void Refresh()
 		{
 			_externalLabel.text = VersionServices.VersionExternal;
@@ -193,11 +197,7 @@ namespace GameLovers.Services.Editor.Explorer.Tabs
 			}
 		}
 
-		/// <summary>
-		/// Returns a forward-slash project-relative path (e.g. <c>Assets/Configs/Resources</c>)
-		/// from an absolute path that lives under <paramref name="baseDir"/>.
-		/// Returns the original string unchanged if it does not start with <paramref name="baseDir"/>.
-		/// </summary>
+		// Returns fullPath unchanged when it does not live under baseDir, rather than throwing or empty.
 		private static string GetRelativePath(string baseDir, string fullPath)
 		{
 			var normalBase = baseDir.Replace('\\', '/').TrimEnd('/') + '/';
